@@ -2,25 +2,18 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc.lexis
 
-import rsc.pretty._
-
-sealed class Position protected (
-    val input: Input,
-    val start: Offset,
-    val end: Offset)
-    extends Pretty {
-  def startLine: Int = input.offsetToLine(start)
-  def startColumn: Int = start - input.lineToOffset(startLine)
-  def endLine: Int = input.offsetToLine(end)
-  def endColumn: Int = end - input.lineToOffset(endLine)
-  def printStr(p: Printer): Unit = PrettyPosition.str(p, this)
-  def printRepl(p: Printer): Unit = PrettyPosition.repl(p, this)
+final class Position(val data: Long) extends AnyVal {
+  def start: Offset = (data >> 32).toInt
+  def end: Offset = (data & 0xFFFFFFFFL).toInt
 }
 
 object Position {
-  def apply(input: Input, start: Offset, end: Offset): Position = {
-    new Position(input, start, end)
+  def apply(start: Offset, end: Offset): Position = {
+    val data = start.toLong << 32 + end
+    new Position(data)
   }
 }
 
-object NoPosition extends Position(NoInput, NoOffset, NoOffset)
+trait Positions {
+  val NoPosition: Position = Position(NoOffset, NoOffset)
+}

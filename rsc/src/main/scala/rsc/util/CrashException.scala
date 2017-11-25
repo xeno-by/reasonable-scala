@@ -16,7 +16,7 @@ object CrashException {
   }
 
   def apply(input: Input, message: String): CrashException = {
-    val pos = Position(input, NoOffset, NoOffset)
+    val pos = Position(NoOffset, NoOffset)
     new CrashException(pos, message, null)
   }
 
@@ -30,7 +30,7 @@ object CrashException {
   // }
 
   def apply(input: Input, message: String, cause: Throwable): CrashException = {
-    val pos = Position(input, NoOffset, NoOffset)
+    val pos = Position(NoOffset, NoOffset)
     new CrashException(pos, message, cause)
   }
 

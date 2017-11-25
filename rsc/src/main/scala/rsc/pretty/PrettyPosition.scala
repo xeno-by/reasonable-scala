@@ -10,8 +10,6 @@ object PrettyPosition {
       case NoPosition =>
         p.str("ø")
       case _ =>
-        p.str(x.input)
-        p.str("@")
         p.str(s"${x.start}..${x.end}")
     }
   }
@@ -22,8 +20,6 @@ object PrettyPosition {
         p.str("NoPosition")
       case _ =>
         p.str("Position(")
-        p.repl(x.input)
-        p.str(", ")
         p.repl(x.start)
         p.str(", ")
         p.repl(x.end)

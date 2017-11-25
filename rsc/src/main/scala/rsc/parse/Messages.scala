@@ -10,12 +10,12 @@ trait Messages {
   self: Parser =>
 
   def unsupported[T: Str: Repl](x: T): Nothing = {
-    val pos = Position(input, in.offset, in.offset)
+    val pos = Position(in.offset, in.offset)
     rsc.util.unsupported(pos, x)
   }
 
   def unreachable[T: Str: Repl](x: T): Nothing = {
-    val pos = Position(input, in.offset, in.offset)
+    val pos = Position(in.offset, in.offset)
     rsc.util.unreachable(pos, x)
   }
 
@@ -41,7 +41,7 @@ trait Messages {
   // If the severity is error, we don't.
   def reportOffset(offset: Offset, msgFn: Position => Message): Message = {
     val length = if (in.token == ID) in.idValue.length else 0
-    val pos = Position(input, offset, offset + length)
+    val pos = Position(offset, offset + length)
     val msg = msgFn(pos)
     reporter.append(msg)
     if (msg.sev == FatalSeverity) {

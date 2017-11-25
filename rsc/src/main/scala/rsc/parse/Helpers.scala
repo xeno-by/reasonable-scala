@@ -44,7 +44,7 @@ trait Helpers {
   }
 
   def atPos[T <: Tree](start: Offset, end: Offset)(t: T): T = {
-    atPos(Position(input, start, end))(t)
+    atPos(Position(start, end))(t)
   }
 
   def atPos[T <: Tree](pos: Position)(t: T): T = {

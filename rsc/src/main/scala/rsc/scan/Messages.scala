@@ -10,7 +10,7 @@ trait Messages {
   self: Scanner =>
 
   def reportOffset(offset: Offset, msgFn: Position => Message): Message = {
-    val pos = Position(input, offset, offset)
+    val pos = Position(offset, offset)
     val msg = msgFn(pos)
     reporter.append(msg)
     if (msg.sev == FatalSeverity) {

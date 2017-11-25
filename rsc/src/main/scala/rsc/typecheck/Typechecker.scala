@@ -440,19 +440,19 @@ final class Typechecker private (
     }
 
     def withPos(start: Tree, end: Tree): T = {
-      tree.withPos(start.pos.input, start.pos.start, end.pos.end)
+      tree.withPos(start.pos.start, end.pos.end)
     }
 
     def withPos(start: Offset, end: Tree): T = {
-      tree.withPos(end.pos.input, start, end.pos.end)
+      tree.withPos(start, end.pos.end)
     }
 
     def withPos(start: Tree, end: Offset): T = {
-      tree.withPos(start.pos.input, start.pos.start, end)
+      tree.withPos(start.pos.start, end)
     }
 
-    private def withPos(input: Input, start: Offset, end: Offset): T = {
-      val syntheticPos = Position(input, start, end)
+    private def withPos(start: Offset, end: Offset): T = {
+      val syntheticPos = Position(start, end)
       if (tree.pos == NoPosition) {
         tree.pos = syntheticPos
         tree

@@ -117,13 +117,13 @@ final case class ExpectedTypeRhs(pos: Position) extends Message {
 
 final case class FileNotFound(input: Input) extends Message {
   def sev = ErrorSeverity
-  def pos = Position(input, NoOffset, NoOffset)
+  def pos = Position(NoOffset, NoOffset)
   def text = s"file not found"
 }
 
 final case class FilesNotFound() extends Message {
   def sev = ErrorSeverity
-  def pos = Position(NoInput, NoOffset, NoOffset)
+  def pos = Position(NoOffset, NoOffset)
   def text = s"nothing to compile"
 }
 
