@@ -15,27 +15,31 @@ final class Typechecker private (
     symtab: Symtab) {
   def apply(env: Env, tree: Typeable): Type = {
     tree match {
-      case tree: Init => init(env, tree)
-      case tree: TermApply => termApply(env, tree)
-      case tree: TermApplyInfix => termApplyInfix(env, tree)
-      case tree: TermApplyPrefix => termApplyPrefix(env, tree)
-      case tree: TermApplyType => termApplyType(env, tree)
-      case tree: TermAssign => termAssign(env, tree)
-      case tree: TermBlock => termBlock(env, tree)
-      case tree: TermFunction => termFunction(env, tree)
-      case tree: TermId => termId(env, tree)
-      case tree: TermIf => termIf(env, tree)
+      // Hot nodes start
       case tree: TermLit => termLit(env, tree)
+      case tree: TermId => termId(env, tree)
+      case tree: TptId => tptId(env, tree)
+      case tree: TermSelect => termSelect(env, tree)
+      case tree: TermApply => termApply(env, tree)
+      case tree: TermApplyType => termApplyType(env, tree)
+      // Hot nodes end
+      // Warm nodes start
+      case tree: TermApplyInfix => termApplyInfix(env, tree)
+      case tree: TermBlock => termBlock(env, tree)
+      case tree: TptApply => tptApply(env, tree)
+      case tree: TermIf => termIf(env, tree)
+      case tree: TermAssign => termAssign(env, tree)
+      // Warm nodes end
+      case tree: Init => init(env, tree)
+      case tree: TermApplyPrefix => termApplyPrefix(env, tree)
+      case tree: TermFunction => termFunction(env, tree)
       case tree: TermMatch => termMatch(env, tree)
       case tree: TermNew => termNew(env, tree)
       case tree: TermReturn => termReturn(env, tree)
-      case tree: TermSelect => termSelect(env, tree)
       case tree: TermSuper => termSuper(env, tree)
       case tree: TermThis => termThis(env, tree)
       case tree: TermThrow => termThrow(env, tree)
       case tree: TermWhile => termWhile(env, tree)
-      case tree: TptApply => tptApply(env, tree)
-      case tree: TptId => tptId(env, tree)
       case tree: TptSelect => tptSelect(env, tree)
       case _ => unreachable(tree)
     }
