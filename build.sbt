@@ -107,18 +107,14 @@ lazy val tests = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("tests"))
   .dependsOn(rsc, benchRsc)
-  .jvmSettings(
-    libraryDependencies += "com.lihaoyi" %% "utest" % versions.uTest,
-    libraryDependencies += "com.lihaoyi" %% "utest" % versions.uTest % "test"
-  )
   .nativeSettings(
     nativeSettings,
-    nativeMode := "debug",
-    libraryDependencies += "com.lihaoyi" %%% "utest" % versions.uTest,
-    libraryDependencies += "com.lihaoyi" %%% "utest" % versions.uTest % "test"
+    nativeMode := "debug"
   )
   .settings(
     commonSettings,
+    libraryDependencies += "com.github.xenoby" %%% "utest" % versions.uTest,
+    libraryDependencies += "com.github.xenoby" %%% "utest" % versions.uTest % "test",
     testFrameworks += new TestFramework("utest.runner.Framework")
   )
 lazy val testsJVM = tests.jvm
