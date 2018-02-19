@@ -3,6 +3,7 @@
 package rsc.report
 
 import java.io._
+import java.nio.{file => nio}
 import rsc.lexis._
 import rsc.pretty._
 import rsc.semantics._
@@ -291,4 +292,13 @@ final case class UnboundId(id: Id) extends Message {
       case TptId(value) => s"unbound: type $value"
     }
   }
+}
+
+// ============ SEMANTICDB ============
+
+final case class OutsideSourceroot(sourceroot: nio.Path, input: Input)
+    extends Message {
+  def sev = WarningSeverity
+  def pos = Position(input, NoOffset, NoOffset)
+  def text = s"no SemanticDB will be generated: path is outside the sourceroot"
 }

@@ -64,11 +64,9 @@ final class Symtab private extends Pretty {
     def apply(input: Input): s.TextDocument = {
       var document = _semanticdbs.get(input)
       if (document == null) {
-        val relativePath = input.path.getFileName
         val occs = new UnrolledBuffer[s.SymbolOccurrence]()
         document = s.TextDocument(
           schema = s.Schema.SEMANTICDB3,
-          uri = relativePath.toString,
           language = Some(s.Language("ReasonableScala")),
           occurrences = occs
         )

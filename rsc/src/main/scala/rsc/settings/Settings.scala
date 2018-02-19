@@ -7,6 +7,7 @@ import java.nio.file._
 
 final case class Settings(
     classpath: List[Path] = Nil,
+    sourceroot: Path = Paths.get("."),
     ins: List[Path] = Nil,
     out: Path = Paths.get("."),
     xprint: Set[String] = Set[String](),
@@ -27,6 +28,8 @@ object Settings {
           loop(settings.copy(classpath = settings.classpath ++ cp), true, rest)
         case "-d" +: out +: rest if allowOptions =>
           loop(settings.copy(out = Paths.get(out)), true, rest)
+        case "-sourceroot" +: sourceroot +: rest if allowOptions =>
+          loop(settings.copy(sourceroot = Paths.get(sourceroot)), true, rest)
         case opt +: rest if allowOptions && opt.startsWith("-Xprint:") =>
           val stripped = opt.stripPrefix("-Xprint:").split(",")
           val xprint = stripped.map(_.trim).toSet

@@ -153,14 +153,23 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
     val semanticdbRoot = settings.out.resolve("META-INF/semanticdb")
     trees.foreach { tree =>
       val input = tree.pos.input
-      val document = symtab.semanticdbs(input)
-      val payload = s.TextDocuments(Seq(document))
-      val relativePath = payload.documents.head.uri + ".semanticdb"
-      val absolutePath = semanticdbRoot.resolve(relativePath)
-      Files.createDirectories(absolutePath.getParent)
-      val stream = Files.newOutputStream(absolutePath)
-      try payload.writeTo(stream)
-      finally stream.close()
+      val uri = {
+        val realSourceroot = settings.sourceroot.toRealPath()
+        val realPath = input.path.toRealPath()
+        realSourceroot.relativize(realPath).toString
+      }
+      if (uri.startsWith("..")) {
+        reporter.append(OutsideSourceroot(settings.sourceroot, input))
+      } else {
+        val document = symtab.semanticdbs(input).copy(uri = uri)
+        val payload = s.TextDocuments(Seq(document))
+        val relativePath = uri + ".semanticdb"
+        val absolutePath = semanticdbRoot.resolve(relativePath)
+        Files.createDirectories(absolutePath.getParent)
+        val stream = Files.newOutputStream(absolutePath)
+        try payload.writeTo(stream)
+        finally stream.close()
+      }
     }
   }
 
