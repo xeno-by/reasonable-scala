@@ -58,17 +58,17 @@ final class Symtab private extends Pretty {
   }
 
   object semanticdbs {
-    private var _nextId = 0
+    private var _nextLocalSymbolSuffix = 0
     private var localSymbols = new HashMap[Uid, String]()
 
     def apply(input: Input): s.TextDocument = {
       var document = _semanticdbs.get(input)
       if (document == null) {
-        val filename = input.file.getName
+        val relativePath = input.path.getFileName
         val occs = new UnrolledBuffer[s.SymbolOccurrence]()
         document = s.TextDocument(
           schema = s.Schema.SEMANTICDB3,
-          uri = filename,
+          uri = relativePath.toString,
           language = Some(s.Language("ReasonableScala")),
           occurrences = occs
         )
@@ -104,8 +104,8 @@ final class Symtab private extends Pretty {
               else {
                 var symbol = localSymbols.get(uid)
                 if (symbol == null) {
-                  val id = _nextId
-                  _nextId += 1
+                  val id = _nextLocalSymbolSuffix
+                  _nextLocalSymbolSuffix += 1
                   symbol = "local" + id
                   localSymbols.put(uid, symbol)
                 }

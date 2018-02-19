@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc
 
-import java.io._
+import java.nio.file._
 import scala.meta.internal.{semanticdb3 => s}
 import rsc.lexis._
 import rsc.parse._
@@ -67,7 +67,7 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
   private def parse(): Unit = {
     val inputs = settings.ins.map(in => Input(in))
     trees = inputs.flatMap { input =>
-      if (input.file.isFile) {
+      if (Files.exists(input.path)) {
         val parser = Parser(settings, reporter, input)
         parser.accept(BOF)
         val tree = parser.source()
@@ -150,21 +150,17 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
   }
 
   private def semanticdb(): Unit = {
-    val semanticdbRoot = new File(settings.out, "META-INF/semanticdb")
-    if (!semanticdbRoot.exists) {
-      semanticdbRoot.mkdirs()
-    }
+    val semanticdbRoot = settings.out.resolve("META-INF/semanticdb")
     trees.foreach { tree =>
       val input = tree.pos.input
-      if (input.file.getName != "Stdlib.scala") {
-        val semanticdbPayload = s.TextDocuments(Seq(symtab.semanticdbs(input)))
-        val relScalaName = semanticdbPayload.documents.head.uri
-        val relSemanticdbName = relScalaName.replace(".scala", ".semanticdb")
-        val semanticdbFile = new File(semanticdbRoot, relSemanticdbName)
-        val semanticdbStream = new FileOutputStream(semanticdbFile)
-        try semanticdbPayload.writeTo(semanticdbStream)
-        finally semanticdbStream.close()
-      }
+      val document = symtab.semanticdbs(input)
+      val payload = s.TextDocuments(Seq(document))
+      val relativePath = payload.documents.head.uri + ".semanticdb"
+      val absolutePath = semanticdbRoot.resolve(relativePath)
+      Files.createDirectories(absolutePath.getParent)
+      val stream = Files.newOutputStream(absolutePath)
+      try payload.writeTo(stream)
+      finally stream.close()
     }
   }
 
