@@ -7,6 +7,7 @@ import java.io._
 final case class Settings(
     classpath: List[File] = Nil,
     ins: List[File] = Nil,
+    out: File = new File("."),
     xprint: Set[String] = Set[String](),
     ystopAfter: Set[String] = Set[String]()
 )
@@ -23,6 +24,8 @@ object Settings {
         case "-classpath" +: s_cp +: rest if allowOptions =>
           val cp = s_cp.split(File.pathSeparator).map(new File(_)).toList
           loop(settings.copy(classpath = settings.classpath ++ cp), true, rest)
+        case "-d" +: out +: rest if allowOptions =>
+          loop(settings.copy(out = new File(out)), true, rest)
         case opt +: rest if allowOptions && opt.startsWith("-Xprint:") =>
           val stripped = opt.stripPrefix("-Xprint:").split(",")
           val xprint = stripped.map(_.trim).toSet
