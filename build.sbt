@@ -98,7 +98,8 @@ lazy val rsc = crossProject(JVMPlatform, NativePlatform)
     buildInfoUsePackageAsPath := true,
     buildInfoKeys := Seq[BuildInfoKey](
       version
-    )
+    ),
+    libraryDependencies += "org.scalameta" %%% "semanticdb3" % "3.3.1"
   )
 lazy val rscJVM = rsc.jvm
 lazy val rscNative = rsc.native

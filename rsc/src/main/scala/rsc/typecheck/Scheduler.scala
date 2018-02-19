@@ -43,6 +43,7 @@ final class Scheduler private (
     owner.enter(id.sid, proposedUid) match {
       case NoUid =>
         id.uid = proposedUid
+        symtab.semanticdbs.definitions(id) = proposedUid
         symtab.outlines(id.uid) = outline
       case existingUid =>
         reporter.append(DoubleDef(outline, symtab.outlines(existingUid)))
@@ -85,6 +86,7 @@ final class Scheduler private (
       qualEnv.owner.enter(id.sid, proposedUid) match {
         case NoUid =>
           id.uid = proposedUid
+          symtab.semanticdbs.references(id) = proposedUid
           val packageScope = PackageScope(id.uid)
           symtab.scopes(id.uid) = packageScope
           todo.scopes.add(qualEnv -> packageScope)
@@ -94,6 +96,7 @@ final class Scheduler private (
           existingOutline match {
             case _: DefnPackage =>
               id.uid = existingUid
+              symtab.semanticdbs.references(id) = existingUid
             case _ =>
               unsupported("overloading")
           }

@@ -116,6 +116,7 @@ final class Scoper private (
               ErrorResolution
             case FoundResolution(uid) =>
               id.uid = uid
+              symtab.semanticdbs.references(id) = uid
               resolution
           }
         case cachedUid =>

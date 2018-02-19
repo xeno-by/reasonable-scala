@@ -40,6 +40,7 @@ final class Outliner private (
               else reporter.append(UnboundMember(env.owner.uid, id))
             case uid =>
               id.uid = uid
+              symtab.semanticdbs.references(id) = uid
               if (rest.isEmpty) ()
               else loop(Env(symtab.scopes(uid)), rest)
           }
@@ -49,6 +50,7 @@ final class Outliner private (
               reporter.append(UnboundId(id))
             case uid =>
               id.uid = uid
+              symtab.semanticdbs.references(id) = uid
               if (rest.isEmpty) ()
               else loop(Env(symtab.scopes(uid)), rest)
           }
@@ -58,6 +60,7 @@ final class Outliner private (
               reporter.append(UnboundId(id))
             case uid =>
               id.uid = uid
+              symtab.semanticdbs.references(id) = uid
               if (rest.isEmpty) ()
               else loop(Env(symtab.scopes(uid)), rest)
           }

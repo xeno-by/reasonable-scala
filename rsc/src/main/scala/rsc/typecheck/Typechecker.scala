@@ -131,6 +131,7 @@ final class Typechecker private (
             scope.enter(id.sid, uid) match {
               case NoUid =>
                 id.uid = uid
+                symtab.semanticdbs.definitions(id) = uid
                 symtab.outlines(id.uid) = stat
               case existingUid =>
                 reporter.append(DoubleDef(stat, symtab.outlines(existingUid)))
@@ -184,6 +185,7 @@ final class Typechecker private (
         NoType
       case uid =>
         tree.uid = uid
+        symtab.semanticdbs.references(tree) = uid
         uid.tpe
     }
   }
@@ -307,6 +309,7 @@ final class Typechecker private (
               }
             case uid =>
               tree.id.uid = uid
+              symtab.semanticdbs.references(tree.id) = uid
               uid.tpe
           }
         }
@@ -410,6 +413,7 @@ final class Typechecker private (
         NoType
       case uid =>
         tree.uid = uid
+        symtab.semanticdbs.references(tree.id) = uid
         SimpleType(uid, Nil)
     }
   }
@@ -427,6 +431,7 @@ final class Typechecker private (
             NoType
           case uid =>
             tree.id.uid = uid
+            symtab.semanticdbs.references(tree.id) = uid
             SimpleType(tree.id.uid, Nil)
         }
       case other =>

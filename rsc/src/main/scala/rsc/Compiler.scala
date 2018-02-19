@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc
 
+import java.io._
+import scala.meta.internal.{semanticdb3 => s}
 import rsc.lexis._
 import rsc.parse._
 import rsc.pretty._
@@ -58,7 +60,8 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
     "schedule" -> schedule,
     "scope" -> scope,
     "outline" -> outline,
-    "typecheck" -> typecheck
+    "typecheck" -> typecheck,
+    "semanticdb" -> semanticdb
   )
 
   private def parse(): Unit = {
@@ -143,6 +146,25 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
     while (!todo.terms.isEmpty) {
       val (env, term) = todo.terms.remove()
       typechecker.apply(env, term)
+    }
+  }
+
+  private def semanticdb(): Unit = {
+    val semanticdbRoot = new File(settings.out, "META-INF/semanticdb")
+    if (!semanticdbRoot.exists) {
+      semanticdbRoot.mkdirs()
+    }
+    trees.foreach { tree =>
+      val input = tree.pos.input
+      if (input.file.getName != "Stdlib.scala") {
+        val semanticdbPayload = s.TextDocuments(Seq(symtab.semanticdbs(input)))
+        val relScalaName = semanticdbPayload.documents.head.uri
+        val relSemanticdbName = relScalaName.replace(".scala", ".semanticdb")
+        val semanticdbFile = new File(semanticdbRoot, relSemanticdbName)
+        val semanticdbStream = new FileOutputStream(semanticdbFile)
+        try semanticdbPayload.writeTo(semanticdbStream)
+        finally semanticdbStream.close()
+      }
     }
   }
 
