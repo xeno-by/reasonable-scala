@@ -6,3 +6,5 @@ addSbtPlugin("org.scala-native" % "sbt-crossproject" % "0.2.2")
 // This build is published from my private fork of Scala Native
 // https://github.com/xeno-by/scala-native/commits/topic/scalameta
 addSbtPlugin("com.github.xenoby" %% "sbt-scala-native" % "0.3.6-20-g0afae98f36")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.12")
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin-shaded" % "0.7.0-rc7"

@@ -2,6 +2,7 @@ val V = new {
   val scala211 = "2.11.12"
   val scala212 = "2.12.4"
   val uTest = "0.6.0"
+  val scalapb = _root_.scalapb.compiler.Version.scalapbVersion
 }
 
 addCommandAlias("benchAll", benchAll.command)
@@ -25,12 +26,12 @@ lazy val commonSettings = Seq(
   scalacOptions += "-Ywarn-unused-import",
   scalacOptions ++= { if (isCI) List("-Xfatal-warnings") else Nil },
   scalacOptions in (Compile, console) := Nil,
-  cancelable := true
+  cancelable := true,
+  buildInfoUsePackageAsPath := true
 )
 
 lazy val benchSettings = commonSettings ++ Seq(
   buildInfoPackage := "rsc.bench",
-  buildInfoUsePackageAsPath := true,
   buildInfoKeys := Seq[BuildInfoKey](
     "sourceRoot" -> (baseDirectory in ThisBuild).value
   )
@@ -40,6 +41,16 @@ lazy val nativeSettings = Seq(
   nativeGC := "immix",
   nativeMode := "release",
   nativeLinkStubs := true
+)
+
+lazy val protobufSettings = Seq(
+  PB.targets.in(Compile) := Seq(
+    scalapb.gen(flatPackage = true) -> (crossTarget.value / "protobuf")
+  ),
+  managedSourceDirectories in Compile += crossTarget.value / "protobuf",
+  // These builds are published using my private fork of Scala Native
+  // https://github.com/xeno-by/scalapb/commits/topic/scalameta
+  libraryDependencies += "com.github.xenoby" %%% "scalapb-runtime" % V.scalapb
 )
 
 lazy val benchJavac18 = project
@@ -94,8 +105,8 @@ lazy val rsc = crossProject(JVMPlatform, NativePlatform)
   .nativeSettings(nativeSettings)
   .settings(
     commonSettings,
+    protobufSettings,
     buildInfoPackage := "rsc.internal",
-    buildInfoUsePackageAsPath := true,
     buildInfoKeys := Seq[BuildInfoKey](
       version
     )
