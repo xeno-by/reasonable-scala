@@ -62,7 +62,7 @@ lazy val benchJavac18 = project
 lazy val benchRsc = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .in(file("bench/rsc"))
-  .dependsOn(rsc)
+  .dependsOn(rsc, tests)
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(JmhPlugin)
   .jvmSettings(
@@ -119,13 +119,18 @@ lazy val rscNative = rsc.native
 lazy val tests = crossProject(JVMPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("tests"))
-  .dependsOn(rsc, benchRsc)
+  .dependsOn(rsc)
+  .enablePlugins(BuildInfoPlugin)
   .nativeSettings(nativeSettings)
   .settings(
     commonSettings,
     libraryDependencies += "com.github.xenoby" %%% "utest" % V.uTest,
     libraryDependencies += "com.github.xenoby" %%% "utest" % V.uTest % "test",
-    testFrameworks += new TestFramework("utest.runner.Framework")
+    testFrameworks += new TestFramework("utest.runner.Framework"),
+    buildInfoPackage := "rsc.tests",
+    buildInfoKeys := Seq[BuildInfoKey](
+      "sourceRoot" -> (baseDirectory in ThisBuild).value
+    )
   )
 lazy val testsJVM = tests.jvm
 lazy val testsNative = tests.native
