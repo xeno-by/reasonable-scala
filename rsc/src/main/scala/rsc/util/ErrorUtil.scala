@@ -34,8 +34,8 @@ trait ErrorUtil {
     def safe(fn: => String): String = {
       try fn
       catch {
-        case ex: Throwable =>
-          s"<prettyprint error: ${ex.getMessage}>"
+        case ex: CrashException => ""
+        case ex: Throwable => "<prettyprint error: " + ex.getClass + ">"
       }
     }
     val str = safe(culprit.str)
@@ -43,10 +43,10 @@ trait ErrorUtil {
     val onlyStr = {
       val isPrimitive = culprit == null || culprit.getClass.isPrimitive
       val isString = culprit.isInstanceOf[String]
-      val isUseless = str == repl
+      val isUseless = str == repl || "" == repl
       isPrimitive || isString || isUseless
     }
-    if (onlyStr) s"$summary: $str"
-    else s"$summary: $str$EOL$repl"
+    if (onlyStr) summary + ": " + str
+    else summary + ": " + str + EOL + repl
   }
 }

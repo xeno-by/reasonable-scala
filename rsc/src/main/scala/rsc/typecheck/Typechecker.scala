@@ -7,6 +7,7 @@ import rsc.report._
 import rsc.semantics._
 import rsc.semantics.SymbolInformation.{Kind => k}
 import rsc.settings._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.util._
 
@@ -148,7 +149,7 @@ final class Typechecker private (
         scope.succeed()
         val env1 = scope :: env
         tpts.result.foreach(apply(env1, _))
-        val signer = Signer(settings, reporter, symtab)
+        val signer = Signer(settings, reporter)
         outlines.result.foreach { outline =>
           val info = signer.apply(env1, outline)
           symtab.infos(outline.id.sym) = info
@@ -182,7 +183,7 @@ final class Typechecker private (
     scope.succeed()
     val env1 = scope :: env
     tpts.result.foreach(apply(env, _))
-    val signer = Signer(settings, reporter, symtab)
+    val signer = Signer(settings, reporter)
     outlines.result.foreach { outline =>
       val info = signer.apply(env, outline)
       symtab.infos(outline.id.sym) = info
@@ -277,7 +278,7 @@ final class Typechecker private (
         scope.succeed()
         val env1 = scope :: env
         cond.foreach(apply(env1, _))
-        val signer = Signer(settings, reporter, symtab)
+        val signer = Signer(settings, reporter)
         outlines.result.foreach { outline =>
           val info = signer.apply(env, outline)
           symtab.infos(outline.id.sym) = info

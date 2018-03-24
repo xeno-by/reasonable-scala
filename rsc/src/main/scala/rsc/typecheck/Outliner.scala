@@ -5,6 +5,7 @@ package rsc.typecheck
 import rsc.report._
 import rsc.semantics._
 import rsc.settings._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.util._
 

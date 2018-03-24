@@ -6,10 +6,11 @@ import java.util.HashMap
 import scala.collection.mutable
 import rsc.pretty._
 import rsc.semantics._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.util._
 
-sealed abstract class Scope(val sym: Symbol) extends Namespace {
+sealed abstract class Scope(val sym: Symbol) extends Pretty {
   var status: Status = PendingStatus
 
   def enter(name: Name, sym: Symbol): Symbol
@@ -213,8 +214,8 @@ object ImporterScope {
     new ImporterScope(sym, tree)
   }
 
-  def apply(alias: String, tree: Importer): ImporterScope = {
-    val sym = alias + " " + freshSym() + "::"
+  def apply(description: String, tree: Importer): ImporterScope = {
+    val sym = description + " " + freshSym() + "::"
     new ImporterScope(sym, tree)
   }
 }
@@ -286,8 +287,8 @@ sealed abstract class OwnerScope(sym: Symbol) extends Scope(sym) {
 final class FlatScope private (sym: Symbol) extends OwnerScope(sym)
 
 object FlatScope {
-  def apply(alias: String): FlatScope = {
-    val sym = alias + freshSym() + "::"
+  def apply(description: String): FlatScope = {
+    val sym = description + freshSym() + "::"
     new FlatScope(sym)
   }
 }
@@ -302,10 +303,10 @@ object PackageScope {
 
 final class TemplateScope private (sym: Symbol, val tree: DefnTemplate)
     extends OwnerScope(sym) {
-  var _parents: List[TemplateScope] = null
+  var _parents: List[Scope] = null
   var _env: Env = null
 
-  def parents: List[TemplateScope] = {
+  def parents: List[Scope] = {
     if (status.isSucceeded) {
       _parents
     } else {
@@ -313,8 +314,13 @@ final class TemplateScope private (sym: Symbol, val tree: DefnTemplate)
     }
   }
 
-  def parents_=(parents: List[TemplateScope]): Unit = {
+  def parents_=(parents: List[Scope]): Unit = {
     if (status.isPending) {
+      parents.foreach {
+        case _: TemplateScope => ()
+        case _: SemanticdbScope => ()
+        case other => unreachable(other)
+      }
       _parents = parents
       _env = Env(parents.reverse)
     } else {
@@ -351,6 +357,97 @@ final class TemplateScope private (sym: Symbol, val tree: DefnTemplate)
 object TemplateScope {
   def apply(tree: DefnTemplate): TemplateScope = {
     new TemplateScope(tree.id.sym, tree)
+  }
+}
+
+final class SemanticdbScope private (
+    val info: SymbolInformation,
+    val symtab: Symtab)
+    extends Scope(info.symbol) {
+  status = SucceededStatus
+  var _storage: HashMap[Name, Symbol] = null
+  var _env: Env = null
+
+  private def loadStorage(): Unit = {
+    info.tpe.flatMap(_.classInfoType) match {
+      case Some(ClassInfoType(_, _, decls)) =>
+        _storage = new HashMap[Name, Symbol]
+        decls.foreach { decl =>
+          val i = decl.lastIndexOf('.', decl.length - 2)
+          val name = Name(decl.substring(i + 1, decl.length - 1))
+          _storage.put(name, decl)
+        }
+      case other =>
+        unreachable(info)
+    }
+  }
+
+  private def loadEnv(): Unit = {
+    info.tpe.flatMap(_.classInfoType) match {
+      case Some(ClassInfoType(_, parents, _)) =>
+        _env = Env()
+        parents.foreach {
+          case SimpleType(sym, _) =>
+            val info = symtab.infos(sym)
+            _env = SemanticdbScope(info, symtab) :: _env
+          case _ =>
+            unreachable(info)
+        }
+      case other =>
+        unreachable(info)
+    }
+  }
+
+  override def enter(name: Name, sym: Symbol): Symbol = {
+    unreachable(this)
+  }
+
+  override def lookup(name: Name): Symbol = {
+    if (_storage == null) loadStorage()
+    val result = _storage.get(name)
+    if (result != null) {
+      result
+    } else {
+      if (_env == null) loadEnv()
+      _env.lookup(name) match {
+        case NoSymbol =>
+          name match {
+            case SomeName(value) =>
+              unreachable(name)
+            case _ =>
+              NoSymbol
+          }
+        case result =>
+          result
+      }
+    }
+  }
+
+  override def resolve(name: Name): Resolution = {
+    if (_storage == null) loadStorage()
+    val result = _storage.get(name)
+    if (result != null) {
+      FoundResolution(result)
+    } else {
+      if (_env == null) loadEnv()
+      _env.resolve(name) match {
+        case MissingResolution =>
+          name match {
+            case SomeName(value) =>
+              unreachable(name)
+            case _ =>
+              MissingResolution
+          }
+        case resolution =>
+          resolution
+      }
+    }
+  }
+}
+
+object SemanticdbScope {
+  def apply(info: SymbolInformation, symtab: Symtab): SemanticdbScope = {
+    new SemanticdbScope(info, symtab)
   }
 }
 

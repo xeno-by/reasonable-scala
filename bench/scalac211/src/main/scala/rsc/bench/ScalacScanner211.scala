@@ -22,7 +22,7 @@ object ScalacScanner211 {
     val reporter = new StoreReporter
     val global = Global(settings, reporter)
     val run = new global.Run
-    val abstractFiles = re2sScalacFiles.map(f => AbstractFile.getFile(f))
+    val abstractFiles = re2sFiles.map(f => AbstractFile.getFile(f))
     val sourceFiles = abstractFiles.map(f => new BatchSourceFile(f)).toArray
   }
 }

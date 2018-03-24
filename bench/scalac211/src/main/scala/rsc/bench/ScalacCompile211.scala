@@ -23,7 +23,7 @@ trait ScalacCompile211 {
     val reporter = new StoreReporter
     val global = Global(settings, reporter)
     val run = new global.Run
-    run.compile(bs.re2sScalacFiles.map(_.toString))
+    run.compile(bs.re2sFiles.map(_.toString))
     if (reporter.hasErrors) {
       reporter.infos.foreach(println)
       sys.error("compile failed")

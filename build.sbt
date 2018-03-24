@@ -39,8 +39,7 @@ lazy val benchSettings = commonSettings ++ Seq(
 
 lazy val nativeSettings = Seq(
   nativeGC := "immix",
-  nativeMode := "release",
-  nativeLinkStubs := true
+  nativeMode := "release"
 )
 
 lazy val protobufSettings = Seq(
@@ -108,6 +107,7 @@ lazy val rsc = crossProject(JVMPlatform, NativePlatform)
     commonSettings,
     protobufSettings,
     PB.protoSources.in(Compile) += file("rsc/src/main/scala/rsc/semantics"),
+    PB.protoSources.in(Compile) += file("rsc/src/main/scala/rsc/symtab"),
     buildInfoPackage := "rsc.internal",
     buildInfoKeys := Seq[BuildInfoKey](
       version

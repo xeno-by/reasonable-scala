@@ -6,12 +6,14 @@ import rsc.Compiler
 import rsc.report._
 import rsc.settings._
 
-trait RscFixtures {
+trait RscFixtures extends FileFixtures {
   def mkCompiler(args: Any*): Compiler = {
-    val options = args.flatMap {
+    val stdlibOptions = List("-cp", stdlibClasspath)
+    val userOptions = args.flatMap {
       case seq: Seq[_] => seq.map(_.toString)
       case other => List(other.toString)
     }
+    val options = stdlibOptions ++ userOptions
     val settings = Settings.parse(options.toList).get
     val reporter = StoreReporter(settings)
     Compiler(settings, reporter)

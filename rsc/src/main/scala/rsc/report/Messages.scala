@@ -7,6 +7,7 @@ import scala.collection.JavaConverters._
 import rsc.lexis._
 import rsc.pretty._
 import rsc.semantics._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.typecheck._
 import rsc.util._

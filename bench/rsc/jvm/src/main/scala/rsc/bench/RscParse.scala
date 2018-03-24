@@ -14,7 +14,9 @@ import rsc.settings._
 object RscParse {
   @State(Scope.Benchmark)
   class BenchmarkState extends FileFixtures {
-    val settings = Settings.parse(re2sRscFiles.map(_.toString)).get
+    val stdlibOptions = List("-cp", stdlibClasspath)
+    val re2sOptions = re2sFiles.map(_.toString)
+    val settings = Settings.parse(stdlibOptions ++ re2sOptions).get
     val reporter = StoreReporter(settings)
     val inputs = settings.ins.map(Input.apply).toArray
   }

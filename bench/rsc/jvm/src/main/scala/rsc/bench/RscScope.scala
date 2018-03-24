@@ -14,7 +14,7 @@ object RscScope {
 
 trait RscScope {
   def runImpl(bs: BenchmarkState): Unit = {
-    val compiler = bs.mkCompiler("-Ystop-after:scope", bs.re2sRscFiles)
+    val compiler = bs.mkCompiler("-Ystop-after:scope", bs.re2sFiles)
     compiler.run()
     val problems = compiler.reporter.problems
     if (problems.nonEmpty) {

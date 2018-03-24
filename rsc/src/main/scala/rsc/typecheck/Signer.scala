@@ -11,10 +11,7 @@ import rsc.settings._
 import rsc.syntax._
 import rsc.util._
 
-final class Signer private (
-    settings: Settings,
-    reporter: Reporter,
-    symtab: Symtab) {
+final class Signer private (settings: Settings, reporter: Reporter) {
   def apply(env: Env, outline: Outline): SymbolInformation = {
     // TODO: Implement me.
     outline match {
@@ -112,7 +109,7 @@ final class Signer private (
 }
 
 object Signer {
-  def apply(settings: Settings, reporter: Reporter, symtab: Symtab): Signer = {
-    new Signer(settings, reporter, symtab)
+  def apply(settings: Settings, reporter: Reporter): Signer = {
+    new Signer(settings, reporter)
   }
 }

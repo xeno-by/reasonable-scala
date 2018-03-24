@@ -5,6 +5,7 @@ package rsc.typecheck
 import rsc.report._
 import rsc.semantics._
 import rsc.settings._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.util._
 
@@ -26,6 +27,8 @@ final class Scoper private (
         scope.succeed()
       case scope: TemplateScope =>
         trySucceed(env, scope)
+      case scope: SemanticdbScope =>
+        unreachable(scope)
       case scope: SuperScope =>
         unreachable(scope)
     }
@@ -53,7 +56,7 @@ final class Scoper private (
   }
 
   private def trySucceed(env: Env, scope: TemplateScope): Unit = {
-    val buf = List.newBuilder[TemplateScope]
+    val buf = List.newBuilder[Scope]
     val inits = {
       if (scope.tree.inits.nonEmpty) {
         scope.tree.inits
@@ -81,6 +84,7 @@ final class Scoper private (
             case FoundResolution(sym) =>
               symtab.scopes(sym) match {
                 case parentScope: TemplateScope => buf += parentScope
+                case parentScope: SemanticdbScope => buf += parentScope
                 case other => unreachable(other)
               }
           }

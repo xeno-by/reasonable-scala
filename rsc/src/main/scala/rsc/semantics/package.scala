@@ -5,9 +5,15 @@ package rsc
 import rsc.pretty._
 
 package object semantics extends Symbols with Types {
-  implicit val typeStr = Str[Type](PrettyType.str)
-  implicit val typeRepl = Repl[Type](PrettyType.repl)
+  implicit val accStr = Str[Accessibility](PrettyAccessibility.str)
+  implicit val accRepl = Repl[Accessibility](PrettyAccessibility.repl)
+
+  implicit val annStr = Str[Annotation](PrettyAnnotation.str)
+  implicit val annRepl = Repl[Annotation](PrettyAnnotation.repl)
 
   implicit val infoStr = Str[SymbolInformation](PrettySymbolInformation.str)
   implicit val infoRepl = Repl[SymbolInformation](PrettySymbolInformation.repl)
+
+  implicit val typeStr = Str[Type](PrettyType.str)
+  implicit val typeRepl = Repl[Type](PrettyType.repl)
 }

@@ -3,35 +3,34 @@
 package rsc.pretty
 
 import scala.collection.JavaConverters._
-import rsc.typecheck._
+import rsc.symtab._
 import rsc.util._
 
 object PrettySymtab {
   def str(p: Printer, x: Symtab): Unit = {
     p.header("Scopes (symtab)")
-    val scopes = x._scopes.asScala.toList.sortBy(_._1.str)
-    p.rep(scopes, EOL) {
-      case (_, scope) =>
-        p.str(scope)
-    }
-    if (scopes.nonEmpty) {
-      p.newline()
-    }
+    p.str(x._scopes)
     p.newline()
     p.header("Infos (symtab)")
-    val infos = x._infos.asScala.toList.sortBy(_._1.str)
-    p.rep(infos, EOL) {
-      case (sym, outline) =>
-        p.str(sym)
-        p.str(" => ")
-        p.str(outline)
+    p.str(x._infos)
+  }
+
+  def str[T: Str](p: Printer, x: Symtab#Table[T]): Unit = {
+    val entries = x._storage.asScala.toList.sortBy(_._1.str)
+    p.rep(entries, EOL) {
+      case (_, entry) =>
+        p.str(entry)
     }
-    if (scopes.nonEmpty) {
+    if (entries.nonEmpty) {
       p.newline()
     }
   }
 
   def repl(p: Printer, x: Symtab): Unit = {
+    unsupported(x)
+  }
+
+  def repl[T: Repl](p: Printer, x: Symtab#Table[T]): Unit = {
     unsupported(x)
   }
 }

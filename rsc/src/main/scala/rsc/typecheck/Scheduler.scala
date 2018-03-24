@@ -5,6 +5,7 @@ package rsc.typecheck
 import rsc.report._
 import rsc.semantics._
 import rsc.settings._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.util._
 
@@ -30,15 +31,16 @@ final class Scheduler private (
   }
 
   private def assignSym(env: Env, id: NamedId, outline: Outline): Symbol = {
-    val proposedSym = {
-      env.owner match {
-        case _: FlatScope => env.owner.sym + id.name.str
-        case _: PackageScope => env.owner.sym + id.name.str
-        case _: TemplateScope => env.owner.sym + id.name.str
-      }
+    val proposedSym = env.owner.sym + id.name.str
+    if (env.owner.isInstanceOf[PackageScope] && env.owner.status.isSucceeded) {
+      env.owner.status = PendingStatus
+      todo.scopes.add(Env() -> env.owner)
     }
     env.owner.enter(id.name, proposedSym) match {
       case NoSymbol =>
+        id.sym = proposedSym
+        todo.outlines.add(env -> outline)
+      case existingSym if symtab.infos.contains(existingSym) =>
         id.sym = proposedSym
         todo.outlines.add(env -> outline)
       case existingSym =>
@@ -79,6 +81,10 @@ final class Scheduler private (
         }
       }
       val proposedSym = qualEnv.owner.sym + id.name.str
+      if (qualEnv.owner.isInstanceOf[PackageScope] && qualEnv.owner.status.isSucceeded) {
+        qualEnv.owner.status = PendingStatus
+        todo.scopes.add(Env() -> qualEnv.owner)
+      }
       qualEnv.owner.enter(id.name, proposedSym) match {
         case NoSymbol =>
           id.sym = proposedSym

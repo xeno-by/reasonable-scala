@@ -14,7 +14,7 @@ object RscSchedule {
 
 trait RscSchedule {
   def runImpl(bs: BenchmarkState): Unit = {
-    val compiler = bs.mkCompiler("-Ystop-after:schedule", bs.re2sRscFiles)
+    val compiler = bs.mkCompiler("-Ystop-after:schedule", bs.re2sFiles)
     compiler.run()
     val problems = compiler.reporter.problems
     if (problems.nonEmpty) {

@@ -14,7 +14,7 @@ trait FileFixtures {
     buildRoot.resolve("examples/re2s/src/main/scala/java/util/regex")
   }
 
-  lazy val re2sScalacFiles: List[Path] = {
+  lazy val re2sFiles: List[Path] = {
     val stream = Files.newDirectoryStream(re2sDir.toPath)
     stream.asScala.toList
   }

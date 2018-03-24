@@ -8,13 +8,14 @@ import rsc.parse._
 import rsc.pretty._
 import rsc.report._
 import rsc.settings._
+import rsc.symtab._
 import rsc.syntax._
 import rsc.typecheck._
 import rsc.util._
 
 class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
   var trees: List[Source] = Nil
-  var symtab: Symtab = Symtab()
+  var symtab: Symtab = Symtab(settings)
   var todo: Todo = Todo()
 
   def run(): Unit = {
@@ -54,7 +55,6 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
 
   private def tasks: List[(String, () => Unit)] = List(
     "parse" -> parse,
-    "link" -> link,
     "schedule" -> schedule,
     "scope" -> scope,
     "outline" -> outline,
@@ -81,33 +81,28 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
     }
   }
 
-  private def link(): Unit = {
-    val linker = Linker(settings, reporter, symtab, todo)
-    linker.apply(trees, settings.classpath)
-  }
-
   private def schedule(): Unit = {
-    val rootEnv = Env(symtab.scopes("_root_."), symtab.scopes("π."))
+    val rootEnv = Env(symtab.scopes("_root_."))
 
     val javaLangQual = TermSelect(TermId("java"), TermId("lang"))
     val javaLangImporter = Importer(javaLangQual, List(ImporteeWildcard()))
-    val javaLangScope = ImporterScope(javaLangImporter)
-    todo.scopes.add(rootEnv -> javaLangScope)
-    val javaLangEnv = javaLangScope :: rootEnv
+    val javaLangImporterScope = ImporterScope(javaLangImporter)
+    todo.scopes.add(rootEnv -> javaLangImporterScope)
+    val javaLangImporterEnv = javaLangImporterScope :: rootEnv
 
     val scalaImporter = Importer(TermId("scala"), List(ImporteeWildcard()))
-    val scalaScope = ImporterScope(scalaImporter)
-    todo.scopes.add(javaLangEnv -> scalaScope)
-    val scalaEnv = scalaScope :: javaLangEnv
+    val scalaImporterScope = ImporterScope(scalaImporter)
+    todo.scopes.add(javaLangImporterEnv -> scalaImporterScope)
+    val scalaImporterEnv = scalaImporterScope :: javaLangImporterEnv
 
     val predefQual = TermSelect(TermId("scala"), TermId("Predef"))
     val predefImporter = Importer(predefQual, List(ImporteeWildcard()))
-    val predefScope = ImporterScope(predefImporter)
-    todo.scopes.add(scalaEnv -> predefScope)
-    val predefEnv = predefScope :: scalaEnv
+    val predefImporterScope = ImporterScope(predefImporter)
+    todo.scopes.add(scalaImporterEnv -> predefImporterScope)
+    val predefImporterEnv = predefImporterScope :: scalaImporterEnv
 
     val scheduler = Scheduler(settings, reporter, symtab, todo)
-    trees.foreach(scheduler.apply(predefEnv, _))
+    trees.foreach(scheduler.apply(predefImporterEnv, _))
   }
 
   private def scope(): Unit = {
@@ -140,7 +135,7 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
   }
 
   private def sign(): Unit = {
-    val signer = Signer(settings, reporter, symtab)
+    val signer = Signer(settings, reporter)
     while (!todo.outlines.isEmpty) {
       val (env, outline) = todo.outlines.remove()
       val info = signer.apply(env, outline)

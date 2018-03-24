@@ -14,7 +14,7 @@ object RscOutline {
 
 trait RscOutline {
   def runImpl(bs: BenchmarkState): Unit = {
-    val compiler = bs.mkCompiler("-Ystop-after:outline", bs.re2sRscFiles)
+    val compiler = bs.mkCompiler("-Ystop-after:outline", bs.re2sFiles)
     compiler.run()
     val problems = compiler.reporter.problems
     if (problems.nonEmpty) {

@@ -72,9 +72,9 @@ sealed class Env protected (val _scopes: List[Scope]) extends Pretty {
       case List(thisScope: TemplateScope) =>
         mix match {
           case Some(mix) =>
-            @tailrec def loop(parents: List[TemplateScope]): Symbol = {
+            @tailrec def loop(parents: List[Scope]): Symbol = {
               parents match {
-                case head :: tail =>
+                case (head: TemplateScope) :: tail =>
                   val found = {
                     mix match {
                       case SomeName(value) => head.tree.id.value == value
@@ -83,6 +83,10 @@ sealed class Env protected (val _scopes: List[Scope]) extends Pretty {
                   }
                   if (found) head.sym
                   else loop(tail)
+                case (head: SemanticdbScope) :: tail =>
+                  ???
+                case head :: tail =>
+                  unreachable(head)
                 case Nil =>
                   NoSymbol
               }

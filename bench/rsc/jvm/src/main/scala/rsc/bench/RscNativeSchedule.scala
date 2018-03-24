@@ -6,8 +6,8 @@ trait RscNativeSchedule extends CliBench {
   def main(args: Array[String]): Unit = {
     val Array(out) = args
     val bs = new FileFixtures {}
-    val fs = bs.re2sRscFiles.map(_.toString)
-    run(List(out, "-Ystop-after:schedule") ++ fs)
+    val fs = bs.re2sFiles.map(_.toString)
+    run(List(out, "-cp", bs.stdlibClasspath, "-Ystop-after:schedule") ++ fs)
   }
 
   def run(command: List[String]): Unit
