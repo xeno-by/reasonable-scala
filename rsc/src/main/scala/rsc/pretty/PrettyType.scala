@@ -69,15 +69,19 @@ object PrettyType {
             case UNKNOWN_SINGLETON | SingletonType.Tag.Unrecognized(_) =>
               p.str("<?>")
           }
+        case INTERSECTION_TYPE =>
+          val Some(IntersectionType(types)) = x.intersectionType
+          p.rep(types, " & ")(normal)
+        case UNION_TYPE =>
+          val Some(UnionType(types)) = x.unionType
+          p.rep(types, " | ")(normal)
+        case WITH_TYPE =>
+          val Some(WithType(types)) = x.withType
+          p.rep(types, " with ")(normal)
         case STRUCTURAL_TYPE =>
-          val Some(StructuralType(tparams, parents, decls)) = x.structuralType
-          p.rep("[", tparams, ", ", "] => ")(defn)
-          p.rep(parents, " with ")(normal)
-          if (decls.nonEmpty || parents.length == 1) {
-            p.str(" { ")
-            p.rep(decls, "; ")(defn)
-            p.str(" }")
-          }
+          val Some(StructuralType(utpe, decls)) = x.structuralType
+          utpe.foreach(normal)
+          p.rep(" {", decls, "; ", " }")(defn)
         case ANNOTATED_TYPE =>
           val Some(AnnotatedType(anns, utpe)) = x.annotatedType
           utpe.foreach(normal)

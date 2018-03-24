@@ -512,7 +512,7 @@ final class Typechecker private (
       info.kind match {
         case k.PACKAGE | k.OBJECT =>
           SimpleType(info.symbol, Nil)
-        case k.DEF | k.VAL | k.VAR | k.PARAMETER =>
+        case k.LOCAL | k.FIELD | k.METHOD | k.PARAMETER =>
           info.tpe.get
         case _ =>
           unreachable(info)

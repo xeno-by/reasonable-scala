@@ -19,6 +19,13 @@ object Build extends AutoPlugin {
 
   import autoImport._
   object autoImport {
+    object V {
+      val scala211 = "2.11.12"
+      val scala212 = "2.12.4"
+      val uTest = "0.6.0"
+      val scalapb = _root_.scalapb.compiler.Version.scalapbVersion
+    }
+
     def benchCliRscNative(bench: String) = {
       val project = ProjectRef(file("."), "benchRscNative")
       def benchSetting(bench: String, mode: String) = {
@@ -131,9 +138,21 @@ object Build extends AutoPlugin {
     val scalafmtTest = taskKey[Unit]("Test formatting with Scalafmt")
 
     val shell = inputKey[Unit]("Run shell command")
+
+    val downloadStdlib = taskKey[Unit]("Download stdlib")
+    val cleanStdlib = taskKey[Unit]("Clean stdlib")
+    val redownloadStdlib = taskKey[Unit]("Redownload stdlib")
   }
 
+  override def projectSettings: Seq[Def.Setting[_]] = List(
+    // Ignore native modules in IntelliJ. See
+    // https://youtrack.jetbrains.com/issue/SCL-13390
+    SettingKey[Boolean]("ide-skip-project") := name.value.endsWith("Native")
+  )
+
   override def globalSettings: Seq[Def.Setting[_]] = List(
+    publishArtifact in packageDoc := sys.env.contains("CI"),
+    resolvers += Resolver.sonatypeRepo("snapshots"),
     scalafmtTest := {
       val projectRoot = Paths.get(".")
       val dotScalafmt = projectRoot.resolve("./scalafmt")

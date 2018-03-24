@@ -81,7 +81,8 @@ final class Scheduler private (
         }
       }
       val proposedSym = qualEnv.owner.sym + id.name.str
-      if (qualEnv.owner.isInstanceOf[PackageScope] && qualEnv.owner.status.isSucceeded) {
+      if (qualEnv.owner
+            .isInstanceOf[PackageScope] && qualEnv.owner.status.isSucceeded) {
         qualEnv.owner.status = PendingStatus
         todo.scopes.add(Env() -> qualEnv.owner)
       }

@@ -2,11 +2,12 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc.symtab
 
-import java.net._
 import java.nio.file._
 import java.util.jar._
 import java.util.HashMap
 import rsc.semantics._
+import rsc.semantics.Format._
+import rsc.semantics.{Language => l}
 import rsc.semantics.SymbolInformation.{Kind => k}
 import rsc.typecheck._
 import rsc.util._
@@ -14,64 +15,67 @@ import rsc.util._
 trait Loaders {
   self: Symtab =>
 
-  private val todo = new HashMap[Symbol, URL]
-  private val language = Some(Language(name = "Reasonable Scala"))
+  private val todo = new HashMap[Symbol, SemanticdbFile]
+
+  // TODO: I would've used URL instead of a custom ADT,
+  // but Scala Native doesn't suppport URL.openStream.
+  // It also doesn't support ZipFileSystemProvider, for that matter.
+  private sealed trait SemanticdbFile
+  private case class Uncompressed(dir: Path, rel: String) extends SemanticdbFile
+  private case class Compressed(jar: Path, rel: String) extends SemanticdbFile
 
   protected def scanClasspath(classpath: List[Path]): Unit = {
     val packages = List.newBuilder[Scope]
     classpath.foreach { entryPath =>
-      def consumeIndex(prefix: String, index: Index): Unit = {
+      def consumeIndex(index: Index): Unit = {
         index.packages.foreach { p =>
           var scope = _scopes._storage.get(p.symbol)
           if (scope == null) {
             scope = PackageScope(p.symbol)
             packages += scope
             _scopes._storage.put(p.symbol, scope)
-
-            val i = p.symbol.lastIndexOf('.', p.symbol.length - 2)
-            val name = p.symbol.substring(i + 1, p.symbol.length - 1)
-            val owner = p.symbol.substring(0, i + 1)
             val info = SymbolInformation(
               symbol = p.symbol,
-              language = language,
+              language = l.SCALA,
               kind = k.PACKAGE,
-              name = name,
-              owner = owner
+              name = p.symbol.desc.name,
+              owner = p.symbol.owner
             )
             _infos._storage.put(p.symbol, info)
           }
           p.members.foreach { m =>
-            val name = Name(m.substring(p.symbol.length))
+            val name = Name(m.desc.toString)
             val m1 = scope.enter(name, m)
             if (m1 != NoSymbol && m1 != m) unreachable(m)
           }
         }
         index.toplevels.foreach { t =>
-          todo.put(t.symbol, new URL(prefix + t.uri))
+          val semanticdbFile = {
+            if (Files.isDirectory(entryPath)) {
+              Uncompressed(entryPath, "META-INF/semanticdb/" + t.uri)
+            } else if (entryPath.toString.endsWith(".jar")) {
+              Compressed(entryPath, "META-INF/semanticdb/" + t.uri)
+            } else {
+              unreachable(entryPath.toString)
+            }
+          }
+          todo.put(t.symbol, semanticdbFile)
         }
       }
       if (Files.isDirectory(entryPath)) {
         val indexPath = entryPath.resolve("META-INF/semanticdb.semanticidx")
         if (Files.exists(indexPath)) {
-          val index = {
-            val indexStream = Files.newInputStream(indexPath)
-            try Index.parseFrom(indexStream)
-            finally indexStream.close()
-          }
-          val prefix = entryPath.toUri.toString + "/META-INF/semanticdb/"
-          consumeIndex(prefix, index)
+          val indexStream = Files.newInputStream(indexPath)
+          try consumeIndex(Index.parseFrom(indexStream))
+          finally indexStream.close()
         }
       } else if (entryPath.toString.endsWith(".jar")) {
         val jar = new JarFile(entryPath.toFile)
         val indexEntry = jar.getEntry("META-INF/semanticdb.semanticidx")
         if (indexEntry != null) {
-          val index = {
-            val indexStream = jar.getInputStream(indexEntry)
-            try Index.parseFrom(indexStream)
-            finally indexStream.close()
-          }
-          val prefix = "jar:" + entryPath.toUri.toString + "!/META-INF/semanticdb/"
-          consumeIndex(prefix, index)
+          val indexStream = jar.getInputStream(indexEntry)
+          try consumeIndex(Index.parseFrom(indexStream))
+          finally indexStream.close()
         }
       } else {
         ()
@@ -81,17 +85,26 @@ trait Loaders {
   }
 
   protected def loadFromClasspath(sym: Symbol): Unit = {
-    val url = todo.get(sym)
-    if (url != null) {
+    val semanticdbFile = todo.get(sym)
+    if (semanticdbFile != null) {
       val semanticdb = {
-        val semanticdbStream = url.openStream()
+        val semanticdbStream = {
+          semanticdbFile match {
+            case Uncompressed(dir, rel) =>
+              Files.newInputStream(dir.resolve(rel))
+            case Compressed(jar, rel) =>
+              val jarFile = new JarFile(jar.toFile)
+              val jarEntry = jarFile.getEntry(rel)
+              jarFile.getInputStream(jarEntry)
+          }
+        }
         try TextDocuments.parseFrom(semanticdbStream)
         finally semanticdbStream.close()
       }
       semanticdb.documents.foreach { document =>
         document.symbols.foreach { info =>
           info.kind match {
-            case k.OBJECT | k.PACKAGE_OBJECT | k.CLASS | k.TRAIT =>
+            case k.OBJECT | k.PACKAGE_OBJECT | k.CLASS | k.TRAIT | k.INTERFACE =>
               val scope = SemanticdbScope(info, this)
               _scopes._storage.put(info.symbol, scope)
             case _ =>
@@ -100,6 +113,7 @@ trait Loaders {
           _infos._storage.put(info.symbol, info)
         }
       }
+      todo.remove(sym)
     }
   }
 }

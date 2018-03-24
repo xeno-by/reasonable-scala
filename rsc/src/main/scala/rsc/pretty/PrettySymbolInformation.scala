@@ -26,16 +26,15 @@ object PrettySymbolInformation {
     if (has(prop.CASE)) p.str("case ")
     if (has(prop.COVARIANT)) p.str("covariant ")
     if (has(prop.CONTRAVARIANT)) p.str("contravariant ")
-    if (has(prop.VALPARAM)) p.str("valparam ")
-    if (has(prop.VARPARAM)) p.str("varparam ")
+    if (has(prop.VAL)) p.str("val ")
+    if (has(prop.VAR)) p.str("var ")
+    if (has(prop.STATIC)) p.str("static ")
+    if (has(prop.PRIMARY)) p.str("primary ")
     x.kind match {
-      case k.VAL => p.str("val ")
-      case k.VAR => p.str("var ")
-      case k.DEF => p.str("def ")
-      case k.GETTER => p.str("getter ")
-      case k.SETTER => p.str("setter ")
-      case k.PRIMARY_CONSTRUCTOR => p.str("primaryctor ")
-      case k.SECONDARY_CONSTRUCTOR => p.str("secondaryctor ")
+      case k.LOCAL => p.str("local ")
+      case k.FIELD => p.str("field ")
+      case k.METHOD => p.str("method ")
+      case k.CONSTRUCTOR => p.str("constructor ")
       case k.MACRO => p.str("macro ")
       case k.TYPE => p.str("type ")
       case k.PARAMETER => p.str("param ")
@@ -46,6 +45,7 @@ object PrettySymbolInformation {
       case k.PACKAGE_OBJECT => p.str("package object ")
       case k.CLASS => p.str("class ")
       case k.TRAIT => p.str("trait ")
+      case k.INTERFACE => p.str("interface ")
       case k.UNKNOWN_KIND | Kind.Unrecognized(_) => ()
     }
     if (x.name.nonEmpty) {
@@ -54,9 +54,8 @@ object PrettySymbolInformation {
       p.str("<?>")
     }
     x.kind match {
-      case k.VAL | k.VAR | k.DEF | k.GETTER | k.SETTER | k.PRIMARY_CONSTRUCTOR |
-          k.SECONDARY_CONSTRUCTOR | k.MACRO | k.TYPE | k.PARAMETER |
-          k.SELF_PARAMETER | k.TYPE_PARAMETER =>
+      case k.LOCAL | k.FIELD | k.METHOD | k.CONSTRUCTOR | k.MACRO | k.TYPE |
+          k.PARAMETER | k.SELF_PARAMETER | k.TYPE_PARAMETER =>
         x.tpe match {
           case Some(tpe) =>
             p.str(": ")
@@ -64,7 +63,7 @@ object PrettySymbolInformation {
           case None =>
             p.str(": <?>")
         }
-      case k.OBJECT | k.PACKAGE_OBJECT | k.CLASS | k.TRAIT =>
+      case k.OBJECT | k.PACKAGE_OBJECT | k.CLASS | k.TRAIT | k.INTERFACE =>
         x.tpe.flatMap(_.classInfoType) match {
           case Some(ClassInfoType(tparams, parents, decls)) =>
             // TODO: Implement me.

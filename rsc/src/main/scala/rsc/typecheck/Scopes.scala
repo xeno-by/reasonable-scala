@@ -2,10 +2,13 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc.typecheck
 
-import java.util.HashMap
+import java.util.LinkedHashMap
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import rsc.pretty._
 import rsc.semantics._
+import rsc.semantics.Format._
+import rsc.semantics.SymbolInformation.{Kind => k}
 import rsc.symtab._
 import rsc.syntax._
 import rsc.util._
@@ -16,6 +19,8 @@ sealed abstract class Scope(val sym: Symbol) extends Pretty {
   def enter(name: Name, sym: Symbol): Symbol
 
   def lookup(name: Name): Symbol
+
+  def members: Iterator[Symbol]
 
   def resolve(name: Name): Resolution = {
     status match {
@@ -145,7 +150,7 @@ final class ImporterScope private (sym: Symbol, val tree: Importer)
     unreachable(this)
   }
 
-  val _mappings = new HashMap[String, String]
+  val _mappings = new LinkedHashMap[String, String]
   var _wildcard = false
 
   tree.importees.foreach {
@@ -180,6 +185,10 @@ final class ImporterScope private (sym: Symbol, val tree: Importer)
     } else {
       unreachable(this)
     }
+  }
+
+  override def members: Iterator[Symbol] = {
+    ???
   }
 
   override def resolve(name: Name): Resolution = {
@@ -221,7 +230,7 @@ object ImporterScope {
 }
 
 sealed abstract class OwnerScope(sym: Symbol) extends Scope(sym) {
-  val _storage = new HashMap[Name, Symbol]
+  val _storage = new LinkedHashMap[Name, Symbol]
 
   override def enter(name: Name, sym: Symbol): Symbol = {
     if (status.isPending) {
@@ -284,7 +293,15 @@ sealed abstract class OwnerScope(sym: Symbol) extends Scope(sym) {
   }
 }
 
-final class FlatScope private (sym: Symbol) extends OwnerScope(sym)
+final class FlatScope private (sym: Symbol) extends OwnerScope(sym) {
+  override def members: Iterator[Symbol] = {
+    if (status.isSucceeded) {
+      _storage.values.iterator.asScala
+    } else {
+      unreachable(this)
+    }
+  }
+}
 
 object FlatScope {
   def apply(description: String): FlatScope = {
@@ -293,7 +310,15 @@ object FlatScope {
   }
 }
 
-final class PackageScope private (sym: Symbol) extends OwnerScope(sym)
+final class PackageScope private (sym: Symbol) extends OwnerScope(sym) {
+  override def members: Iterator[Symbol] = {
+    if (status.isSucceeded) {
+      _storage.values.iterator.asScala
+    } else {
+      unreachable(this)
+    }
+  }
+}
 
 object PackageScope {
   def apply(sym: Symbol): PackageScope = {
@@ -323,6 +348,17 @@ final class TemplateScope private (sym: Symbol, val tree: DefnTemplate)
       }
       _parents = parents
       _env = Env(parents.reverse)
+    } else {
+      unreachable(this)
+    }
+  }
+
+  override def members: Iterator[Symbol] = {
+    if (status.isSucceeded) {
+      // TODO: Should we exclude overridden members?
+      val decls = _storage.values.iterator.asScala
+      val inherited = _env._scopes.iterator.flatMap(_.members)
+      decls ++ inherited
     } else {
       unreachable(this)
     }
@@ -365,18 +401,14 @@ final class SemanticdbScope private (
     val symtab: Symtab)
     extends Scope(info.symbol) {
   status = SucceededStatus
-  var _storage: HashMap[Name, Symbol] = null
+  var _storage: LinkedHashMap[Name, Symbol] = null
   var _env: Env = null
 
   private def loadStorage(): Unit = {
     info.tpe.flatMap(_.classInfoType) match {
       case Some(ClassInfoType(_, _, decls)) =>
-        _storage = new HashMap[Name, Symbol]
-        decls.foreach { decl =>
-          val i = decl.lastIndexOf('.', decl.length - 2)
-          val name = Name(decl.substring(i + 1, decl.length - 1))
-          _storage.put(name, decl)
-        }
+        _storage = new LinkedHashMap[Name, Symbol]
+        decls.foreach(decl => _storage.put(Name(decl.desc.toString), decl))
       case other =>
         unreachable(info)
     }
@@ -385,14 +417,25 @@ final class SemanticdbScope private (
   private def loadEnv(): Unit = {
     info.tpe.flatMap(_.classInfoType) match {
       case Some(ClassInfoType(_, parents, _)) =>
-        _env = Env()
-        parents.foreach {
-          case SimpleType(sym, _) =>
-            val info = symtab.infos(sym)
-            _env = SemanticdbScope(info, symtab) :: _env
-          case _ =>
-            unreachable(info)
+        def parentScope(tpe: Type): Scope = {
+          tpe match {
+            case SimpleType(sym, _) =>
+              val info = symtab.infos(sym)
+              info.kind match {
+                case k.OBJECT | k.PACKAGE_OBJECT | k.CLASS | k.TRAIT | k.INTERFACE =>
+                  SemanticdbScope(info, symtab)
+                case k.TYPE =>
+                  val hi = info.tpe.flatMap(_.typeType.flatMap(_.upperBound)).get
+                  parentScope(hi)
+                case _ =>
+                  unreachable(info)
+              }
+            case _ =>
+              unreachable(tpe)
+          }
         }
+        _env = Env()
+        parents.foreach(parent => _env = parentScope(parent) :: _env)
       case other =>
         unreachable(info)
     }
@@ -420,6 +463,19 @@ final class SemanticdbScope private (
         case result =>
           result
       }
+    }
+  }
+
+  override def members: Iterator[Symbol] = {
+    if (status.isSucceeded) {
+      // TODO: Should we exclude overridden members?
+      if (_storage == null) loadStorage()
+      if (_env == null) loadEnv()
+      val decls = _storage.values.iterator.asScala
+      val inherited = _env._scopes.iterator.flatMap(_.members)
+      decls ++ inherited
+    } else {
+      unreachable(this)
     }
   }
 
@@ -461,6 +517,11 @@ final class SuperScope private (sym: Symbol, val underlying: TemplateScope)
 
   override def lookup(name: Name): Symbol = {
     underlying._env.lookup(name)
+  }
+
+  override def members: Iterator[Symbol] = {
+    // TODO: Should we exclude overridden members?
+    underlying._env._scopes.iterator.flatMap(_.members)
   }
 
   override def resolve(name: Name): Resolution = {

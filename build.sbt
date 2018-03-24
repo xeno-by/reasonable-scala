@@ -1,10 +1,3 @@
-val V = new {
-  val scala211 = "2.11.12"
-  val scala212 = "2.12.4"
-  val uTest = "0.6.0"
-  val scalapb = _root_.scalapb.compiler.Version.scalapbVersion
-}
-
 addCommandAlias("benchAll", benchAll.command)
 addCommandAlias("benchCI", benchCI.command)
 addCommandAlias("benchQuick", benchQuick.command)
@@ -18,7 +11,8 @@ lazy val isCI = sys.props.getOrElse("CI", default = "false") == "true"
 lazy val commonSettings = Seq(
   organization := "com.twitter",
   version := version.value.replace("+", "-"),
-  scalaVersion := V.scala211,
+  scalaVersion := V.scala212,
+  crossScalaVersions := List(V.scala211, V.scala212),
   scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "off"),
   scalacOptions += "-deprecation",
   scalacOptions += "-unchecked",
@@ -39,7 +33,8 @@ lazy val benchSettings = commonSettings ++ Seq(
 
 lazy val nativeSettings = Seq(
   nativeGC := "immix",
-  nativeMode := "release"
+  nativeMode := "release",
+  nativeLinkStubs := true
 )
 
 lazy val protobufSettings = Seq(
@@ -48,9 +43,15 @@ lazy val protobufSettings = Seq(
     scalapb.gen(flatPackage = true) -> (crossTarget.value / "protobuf")
   ),
   managedSourceDirectories in Compile += crossTarget.value / "protobuf",
-  // These builds are published using my private fork of Scala Native
-  // https://github.com/xeno-by/scalapb/commits/topic/scalameta
-  libraryDependencies += "com.github.xenoby" %%% "scalapb-runtime" % V.scalapb
+  libraryDependencies += {
+    if (scalaVersion.value.startsWith("2.11")) {
+      // These builds are published using my private fork of Scala Native
+      // https://github.com/xeno-by/scalapb/commits/topic/scalameta
+      "com.github.xenoby" %%% "scalapb-runtime" % V.scalapb
+    } else {
+      "com.thesamet.scalapb" %%% "scalapb-runtime" % V.scalapb
+    }
+  }
 )
 
 lazy val benchJavac18 = project
@@ -121,11 +122,25 @@ lazy val tests = crossProject(JVMPlatform, NativePlatform)
   .in(file("tests"))
   .dependsOn(rsc)
   .enablePlugins(BuildInfoPlugin)
-  .nativeSettings(nativeSettings)
+  .nativeSettings(
+    nativeSettings,
+    nativeMode := "debug"
+  )
   .settings(
     commonSettings,
-    libraryDependencies += "com.github.xenoby" %%% "utest" % V.uTest,
-    libraryDependencies += "com.github.xenoby" %%% "utest" % V.uTest % "test",
+    libraryDependencies ++= {
+      if (scalaVersion.value.startsWith("2.11")) {
+        // These builds are published using my private fork of uTest
+        // https://github.com/xeno-by/utest/commits/topic/scalameta
+        Seq(
+          "com.github.xenoby" %%% "utest" % V.uTest,
+          "com.github.xenoby" %%% "utest" % V.uTest % "test")
+      } else {
+        Seq(
+          "com.lihaoyi" %%% "utest" % V.uTest,
+          "com.lihaoyi" %%% "utest" % V.uTest % "test")
+      }
+    },
     testFrameworks += new TestFramework("utest.runner.Framework"),
     buildInfoPackage := "rsc.tests",
     buildInfoKeys := Seq[BuildInfoKey](

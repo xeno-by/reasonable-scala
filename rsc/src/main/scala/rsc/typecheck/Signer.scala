@@ -6,6 +6,7 @@ import rsc.report._
 import rsc.semantics._
 import rsc.semantics.MethodType._
 import rsc.semantics.SymbolInformation.{Kind => k}
+import rsc.semantics.SymbolInformation.{Property => p}
 import rsc.semantics.Type.Tag._
 import rsc.settings._
 import rsc.syntax._
@@ -28,15 +29,11 @@ final class Signer private (settings: Settings, reporter: Reporter) {
         val ret = outline.ret.tpe
         val tpe = MethodType(tparams, paramss, Some(ret))
         SymbolInformation(
-          kind = k.DEF,
+          kind = k.METHOD,
           symbol = outline.id.sym,
           tpe = Some(Type(tag = METHOD_TYPE, methodType = Some(tpe))))
       case outline: DefnField =>
-        val isVal = outline.mods.exists(_.isInstanceOf[ModVal])
-        SymbolInformation(
-          kind = if (isVal) k.VAL else k.VAR,
-          symbol = outline.id.sym,
-          tpe = Some(outline.tpt.tpe))
+        ???
       case outline: DefnObject =>
         val tpe = ClassInfoType(Nil, Nil, Nil)
         SymbolInformation(
@@ -68,12 +65,13 @@ final class Signer private (settings: Settings, reporter: Reporter) {
             case id: NamedId => id.sym
           }
         }
-        SymbolInformation(kind = k.VAL, symbol = sym, tpe = Some(outline.tpe))
+        SymbolInformation(kind = k.LOCAL, symbol = sym, tpe = Some(outline.tpe))
       case outline: PrimaryCtor =>
         val paramss = List(ParameterList(outline.params.map(_.id.sym)))
         val tpe = MethodType(Nil, paramss, None)
         SymbolInformation(
-          kind = k.PRIMARY_CONSTRUCTOR,
+          kind = k.CONSTRUCTOR,
+          properties = p.PRIMARY.value,
           symbol = outline.id.sym,
           tpe = Some(Type(tag = METHOD_TYPE, methodType = Some(tpe))))
       case outline: TermParam =>

@@ -5,6 +5,7 @@ package rsc.symtab
 import java.util.HashMap
 import rsc.pretty._
 import rsc.semantics._
+import rsc.semantics.Format._
 import rsc.typecheck._
 import rsc.util._
 
@@ -22,6 +23,10 @@ trait Tables {
       if (payload == null) {
         loadFromClasspath(sym)
         payload = _storage.get(sym)
+        if (payload == null && sym.owner != NoSymbol) {
+          load(sym.owner)
+          payload = _storage.get(sym)
+        }
       }
       payload
     }
