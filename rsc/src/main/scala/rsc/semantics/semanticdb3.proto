@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package scala.meta.internal.semanticdb3;
+package rsc.semantics;
 
 enum Schema {
   LEGACY = 0;

@@ -89,7 +89,7 @@ final class Typechecker private (
     val targs = tree.targs.map { tpt =>
       apply(env, tpt) match {
         case NoType => return NoType
-        case tpe: SimpleType => tpe
+        case tpe @ SimpleType(_, _) => tpe
         case other => unreachable(other)
       }
     }
@@ -288,10 +288,10 @@ final class Typechecker private (
     qualTpe match {
       case NoType =>
         NoType
-      case qualTpe: FunctionType =>
+      case qualTpe @ FunctionType(_, _, _) =>
         reporter.append(NonValue(tree.qual, qualTpe))
         NoType
-      case qualTpe: SimpleType =>
+      case qualTpe @ SimpleType(_, _) =>
         def lookup(qualSym: Symbol): Type = {
           val qualScope = symtab.scopes(qualSym)
           qualScope.lookup(tree.id.name) match {
@@ -314,7 +314,7 @@ final class Typechecker private (
           qualTpe match {
             case NoType =>
               NoType
-            case _: FunctionType =>
+            case _ @FunctionType(_, _, _) =>
               unreachable(qualTpe)
             case SimpleType(qualSym, targs) =>
               symtab.outlines(qualSym) match {
@@ -393,7 +393,7 @@ final class Typechecker private (
       case SimpleType(funSym, Nil) =>
         val targs = tree.targs.map {
           apply(env, _) match {
-            case targ: SimpleType => targ
+            case targ @ SimpleType(_, _) => targ
             case other => unreachable(other)
           }
         }
@@ -463,7 +463,7 @@ final class Typechecker private (
   }
 
   private implicit class TypecheckerTptOps(tpt: Tpt) {
-    def tpe: SimpleType = {
+    def tpe: Type = {
       tpt match {
         case TptApply(fun: TptPath, targs) =>
           if (fun.id.sym == NoSymbol) unreachable(fun)
@@ -504,70 +504,70 @@ final class Typechecker private (
   }
 
   private implicit class TypecheckerTpeOps(tpe: Type) {
-    def subst(tparams: List[TypeParam], targs: List[SimpleType]): Type = {
+    def subst(tparams: List[TypeParam], targs: List[Type]): Type = {
       if (tparams.isEmpty && targs.isEmpty) {
         tpe
       } else {
         tpe match {
           case NoType =>
             NoType
-          case tpe: FunctionType =>
-            val tparams1 = tpe.tparams.diff(tparams.map(_.id.sym))
-            val params1 = tpe.params
-            val ret1 = {
-              tpe.ret.subst(tparams, targs) match {
-                case ret1: SimpleType => ret1
+          case FunctionType(funTparams, funParams, funRet) =>
+            val funTparams1 = funTparams.diff(tparams.map(_.id.sym))
+            val funParams1 = funParams
+            val funRet1 = {
+              funRet.subst(tparams, targs) match {
+                case funRet1 @ SimpleType(_, _) => funRet1
                 case other => unreachable(other)
               }
             }
-            FunctionType(tparams1, params1, ret1)
-          case tpe: SimpleType =>
-            val i = tparams.indexWhere(_.id.sym == tpe.sym)
+            FunctionType(funTparams1, funParams1, funRet1)
+          case SimpleType(simpleSym, simpleTargs) =>
+            val i = tparams.indexWhere(_.id.sym == simpleSym)
             if (i != -1) {
               targs(i)
             } else {
-              val sym1 = tpe.sym
-              val targs1 = tpe.targs.map {
+              val simpleSym1 = simpleSym
+              val simpleTargs1 = simpleTargs.map {
                 _.subst(tparams, targs) match {
-                  case targ1: SimpleType => targ1
+                  case simpleTarg1 @ SimpleType(_, _) => simpleTarg1
                   case other => unreachable(other)
                 }
               }
-              SimpleType(sym1, targs1)
+              SimpleType(simpleSym1, simpleTargs1)
             }
         }
       }
     }
-    def subst(tparams: Seq[Symbol], targs: List[SimpleType]): Type = {
+    def subst(tparams: Seq[Symbol], targs: List[Type]): Type = {
       if (tparams.isEmpty && targs.isEmpty) {
         tpe
       } else {
         tpe match {
           case NoType =>
             NoType
-          case tpe: FunctionType =>
-            val tparams1 = tpe.tparams.diff(tparams)
-            val params1 = tpe.params
-            val ret1 = {
-              tpe.ret.subst(tparams, targs) match {
-                case ret1: SimpleType => ret1
+          case FunctionType(funTparams, funParams, funRet) =>
+            val funTparams1 = funTparams.diff(tparams)
+            val funParams1 = funParams
+            val funRet1 = {
+              funRet.subst(tparams, targs) match {
+                case funRet1 @ SimpleType(_, _) => funRet1
                 case other => unreachable(other)
               }
             }
-            FunctionType(tparams1, params1, ret1)
-          case tpe: SimpleType =>
-            val i = tparams.indexWhere(_ == tpe.sym)
+            FunctionType(funTparams1, funParams1, funRet1)
+          case SimpleType(simpleSym, simpleTargs) =>
+            val i = tparams.indexWhere(_ == simpleSym)
             if (i != -1) {
               targs(i)
             } else {
-              val sym1 = tpe.sym
-              val targs1 = tpe.targs.map {
+              val simpleSym1 = simpleSym
+              val simpleTargs1 = simpleTargs.map {
                 _.subst(tparams, targs) match {
-                  case targ1: SimpleType => targ1
+                  case simpleTarg1 @ SimpleType(_, _) => simpleTarg1
                   case other => unreachable(other)
                 }
               }
-              SimpleType(sym1, targs1)
+              SimpleType(simpleSym1, simpleTargs1)
             }
         }
       }

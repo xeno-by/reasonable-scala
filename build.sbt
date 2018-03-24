@@ -44,6 +44,7 @@ lazy val nativeSettings = Seq(
 )
 
 lazy val protobufSettings = Seq(
+  PB.protoSources.in(Compile) := Nil,
   PB.targets.in(Compile) := Seq(
     scalapb.gen(flatPackage = true) -> (crossTarget.value / "protobuf")
   ),
@@ -106,6 +107,7 @@ lazy val rsc = crossProject(JVMPlatform, NativePlatform)
   .settings(
     commonSettings,
     protobufSettings,
+    PB.protoSources.in(Compile) += file("rsc/src/main/scala/rsc/semantics"),
     buildInfoPackage := "rsc.internal",
     buildInfoKeys := Seq[BuildInfoKey](
       version
