@@ -58,6 +58,7 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
     "schedule" -> schedule,
     "scope" -> scope,
     "outline" -> outline,
+    "sign" -> sign,
     "typecheck" -> typecheck
   )
 
@@ -135,6 +136,15 @@ class Compiler(val settings: Settings, val reporter: Reporter) extends Pretty {
     while (!todo.tpts.isEmpty) {
       val (env, tpt) = todo.tpts.remove()
       outliner.apply(env, tpt)
+    }
+  }
+
+  private def sign(): Unit = {
+    val signer = Signer(settings, reporter, symtab)
+    while (!todo.outlines.isEmpty) {
+      val (env, outline) = todo.outlines.remove()
+      val info = signer.apply(env, outline)
+      symtab.infos(outline.id.sym) = info
     }
   }
 

@@ -50,6 +50,20 @@ object PrettyTodo {
       p.newline()
     }
     p.newline()
+    p.header("Outlines (todo)")
+    val outlines = x.outlines.asScala.toList
+    p.rep(outlines, EOL) {
+      case (env, outline) =>
+        p.str(outline)
+        if (p.settings.xprint("envs")) {
+          p.str(" => ")
+          p.str(outline)
+        }
+    }
+    if (outlines.nonEmpty) {
+      p.newline()
+    }
+    p.newline()
     p.header("Terms (todo)")
     val terms = x.terms.asScala.toList
     p.rep(terms, EOL) {

@@ -3,6 +3,7 @@
 package rsc.report
 
 import java.io._
+import scala.collection.JavaConverters._
 import rsc.lexis._
 import rsc.pretty._
 import rsc.semantics._
@@ -193,21 +194,34 @@ final case class RepeatedModifier(pos: Position) extends Message {
 
 // ============ TYPECHECKER ============
 
-final case class DoubleDef(tree: Outline, existing: Outline) extends Message {
+final case class DoubleDef(
+    sym: Symbol,
+    candidate: Outline,
+    todo: Todo,
+    symtab: Symtab)
+    extends Message {
   def sev = ErrorSeverity
-  def pos = tree.id.point
+  def pos = candidate.id.point
   def text = {
-    if (tree.isInstanceOf[DefnDef] || existing.isInstanceOf[DefnDef]) {
+    // TODO: If we can't find existing in todo, reconstruct it from symtab.infos.
+    val existing = {
+      val outlines = todo.outlines.asScala.map(_._2)
+      outlines.find(_.id.sym == sym) match {
+        case Some(existing) => existing
+        case _ => unreachable(sym)
+      }
+    }
+    if (candidate.isInstanceOf[DefnDef] || existing.isInstanceOf[DefnDef]) {
       unsupported("overloading")
     } else {
-      val treeDesc = {
-        tree.id match {
-          case AnonId() => unreachable(tree)
+      val candidateDesc = {
+        candidate.id match {
+          case AnonId() => unreachable(candidate)
           case id: NamedId => id.value
         }
       }
       val existingDesc = PrettyOutline.desc(existing)
-      s"$treeDesc is already defined as $existingDesc"
+      s"$candidateDesc is already defined as $existingDesc"
     }
   }
 }

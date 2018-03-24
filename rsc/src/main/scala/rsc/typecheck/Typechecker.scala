@@ -5,6 +5,7 @@ package rsc.typecheck
 import rsc.lexis._
 import rsc.report._
 import rsc.semantics._
+import rsc.semantics.SymbolInformation.{Kind => k}
 import rsc.settings._
 import rsc.syntax._
 import rsc.util._
@@ -122,6 +123,7 @@ final class Typechecker private (
   private def termBlock(env: Env, tree: TermBlock): Type = {
     tree.stats match {
       case stats :+ (term: Term) =>
+        val outlines = List.newBuilder[Outline]
         val tpts = List.newBuilder[Tpt]
         val terms = List.newBuilder[Term]
         val scope = FlatScope("block")
@@ -131,9 +133,9 @@ final class Typechecker private (
             scope.enter(id.name, sym) match {
               case NoSymbol =>
                 id.sym = sym
-                symtab.outlines(id.sym) = stat
+                outlines += stat
               case existingSym =>
-                reporter.append(DoubleDef(stat, symtab.outlines(existingSym)))
+                reporter.append(DoubleDef(existingSym, stat, Todo(), symtab))
                 return NoType
             }
             tpts += tpt
@@ -146,6 +148,11 @@ final class Typechecker private (
         scope.succeed()
         val env1 = scope :: env
         tpts.result.foreach(apply(env1, _))
+        val signer = Signer(settings, reporter, symtab)
+        outlines.result.foreach { outline =>
+          val info = signer.apply(env1, outline)
+          symtab.infos(outline.id.sym) = info
+        }
         terms.result.foreach(apply(env1, _))
         apply(env1, term)
       case Nil =>
@@ -156,6 +163,7 @@ final class Typechecker private (
   }
 
   private def termFunction(env: Env, tree: TermFunction): Type = {
+    val outlines = List.newBuilder[Outline]
     val tpts = List.newBuilder[Tpt]
     val scope = FlatScope("lambda")
     tree.params.foreach {
@@ -164,9 +172,9 @@ final class Typechecker private (
         scope.enter(id.name, sym) match {
           case NoSymbol =>
             id.sym = sym
-            symtab.outlines(id.sym) = param
+            outlines += param
           case existingSym =>
-            reporter.append(DoubleDef(param, symtab.outlines(existingSym)))
+            reporter.append(DoubleDef(existingSym, param, Todo(), symtab))
             return NoType
         }
         tpts += tpt
@@ -174,6 +182,11 @@ final class Typechecker private (
     scope.succeed()
     val env1 = scope :: env
     tpts.result.foreach(apply(env, _))
+    val signer = Signer(settings, reporter, symtab)
+    outlines.result.foreach { outline =>
+      val info = signer.apply(env, outline)
+      symtab.infos(outline.id.sym) = info
+    }
     apply(env1, tree.body)
   }
 
@@ -223,6 +236,7 @@ final class Typechecker private (
     val caseTpes = List.newBuilder[Type]
     tree.cases.foreach {
       case caseDef @ Case(pat, cond, stats) =>
+        val outlines = List.newBuilder[Outline]
         val scope = FlatScope("case")
         def loop(pat: Pat): Unit = {
           pat match {
@@ -244,10 +258,10 @@ final class Typechecker private (
                   scope.enter(id.name, sym) match {
                     case NoSymbol =>
                       id.sym = sym
-                      symtab.outlines(id.sym) = pat
+                      outlines += pat
                       pat.tpe = apply(env, tpt)
                     case existingSym =>
-                      val message = DoubleDef(pat, symtab.outlines(existingSym))
+                      val message = DoubleDef(existingSym, pat, Todo(), symtab)
                       reporter.append(message)
                   }
                 case None =>
@@ -263,6 +277,11 @@ final class Typechecker private (
         scope.succeed()
         val env1 = scope :: env
         cond.foreach(apply(env1, _))
+        val signer = Signer(settings, reporter, symtab)
+        outlines.result.foreach { outline =>
+          val info = signer.apply(env, outline)
+          symtab.infos(outline.id.sym) = info
+        }
         val stats1 = TermBlock(stats).withPos(tree)
         caseTpes += apply(env1, stats1)
     }
@@ -292,8 +311,8 @@ final class Typechecker private (
         reporter.append(NonValue(tree.qual, qualTpe))
         NoType
       case qualTpe @ SimpleType(_, _) =>
-        def lookup(qualSym: Symbol): Type = {
-          val qualScope = symtab.scopes(qualSym)
+        def lookup(qualScopeSym: Symbol): Type = {
+          val qualScope = symtab.scopes(qualScopeSym)
           qualScope.lookup(tree.id.name) match {
             case NoSymbol =>
               if (tree.id.value.isOpAssignment) {
@@ -302,7 +321,7 @@ final class Typechecker private (
                 val tree1 = TermSelect(tree.qual, id1).withPos(tree)
                 apply(env, tree1)
               } else {
-                reporter.append(UnboundMember(qualSym, tree.id))
+                reporter.append(UnboundMember(qualScopeSym, tree.id))
                 NoType
               }
             case sym =>
@@ -314,18 +333,22 @@ final class Typechecker private (
           qualTpe match {
             case NoType =>
               NoType
-            case _ @FunctionType(_, _, _) =>
+            case FunctionType(_, _, _) =>
               unreachable(qualTpe)
             case SimpleType(qualSym, targs) =>
-              symtab.outlines(qualSym) match {
-                case DefnPackage(pid, _) =>
-                  lookup(pid.id.sym)
-                case DefnTemplate(_, id, tparams, _, _, _) =>
-                  lookup(id.sym).subst(tparams, targs)
-                case DefnType(_, _, tparams, tpt) =>
-                  loop(tpt.tpe.subst(tparams, targs))
-                case tparam: TypeParam =>
-                  loop(tparam.hi.tpe)
+              val info = symtab.infos(qualSym)
+              info.kind match {
+                case k.PACKAGE =>
+                  lookup(info.symbol)
+                case k.CLASS | k.TRAIT | k.OBJECT =>
+                  val ClassInfoType(tparams, _, _) =
+                    info.tpe.get.classInfoType.get
+                  lookup(info.symbol).subst(tparams, targs)
+                case k.TYPE | k.TYPE_PARAMETER =>
+                  val TypeType(tparams, _, Some(hi)) = info.tpe.get.typeType.get
+                  loop(hi).subst(tparams, targs)
+                case _ =>
+                  unreachable(info)
               }
           }
         }
@@ -347,12 +370,15 @@ final class Typechecker private (
             NoType
           case mixSym =>
             tree.mix.sym = mixSym
-            symtab.outlines(mixSym) match {
-              case DefnTemplate(_, id, tparams, _, _, _) =>
-                val targs = tparams.map(tp => SimpleType(tp.id.sym, Nil))
-                SimpleType(id.sym, targs)
-              case other =>
-                unreachable(other)
+            val info = symtab.infos(mixSym)
+            info.kind match {
+              case k.CLASS | k.TRAIT | k.OBJECT =>
+                val ClassInfoType(tparams, _, _) =
+                  info.tpe.get.classInfoType.get
+                val targs = tparams.map(SimpleType(_, Nil)).toList
+                SimpleType(info.symbol, targs)
+              case _ =>
+                unreachable(info)
             }
         }
     }
@@ -365,12 +391,14 @@ final class Typechecker private (
         NoType
       case qualSym =>
         tree.qual.sym = qualSym
-        symtab.outlines(qualSym) match {
-          case DefnTemplate(_, id, tparams, _, _, _) =>
-            val targs = tparams.map(tparam => SimpleType(tparam.id.sym, Nil))
-            SimpleType(id.sym, targs)
-          case other =>
-            unreachable(other)
+        val info = symtab.infos(qualSym)
+        info.kind match {
+          case k.CLASS | k.TRAIT | k.OBJECT =>
+            val ClassInfoType(tparams, _, _) = info.tpe.get.classInfoType.get
+            val targs = tparams.map(SimpleType(_, Nil)).toList
+            SimpleType(info.symbol, targs)
+          case _ =>
+            unreachable(info)
         }
     }
   }
@@ -479,26 +507,14 @@ final class Typechecker private (
 
   private implicit class TypecheckerSymbolOps(sym: Symbol) {
     def tpe: Type = {
-      symtab.outlines(sym) match {
-        case DefnDef(_, _, tparams, params, ret, _) =>
-          val tpeTparams = tparams.map(_.id.sym)
-          val tpeParams = params.map(_.id.sym)
-          val tpeRet = ret.tpe
-          FunctionType(tpeTparams, tpeParams, tpeRet)
-        case DefnField(_, _, tpt, _) =>
-          tpt.tpe
-        case DefnObject(_, id, _, _) =>
-          SimpleType(id.sym, Nil)
-        case DefnPackage(id: TermId, _) =>
-          SimpleType(id.sym, Nil)
-        case DefnPackage(TermSelect(_, id: TermId), _) =>
-          SimpleType(id.sym, Nil)
-        case pat: PatVar =>
-          pat.tpe
-        case TermParam(_, _, tpt) =>
-          tpt.tpe
-        case outline =>
-          unreachable(outline)
+      val info = symtab.infos(sym)
+      info.kind match {
+        case k.PACKAGE | k.OBJECT =>
+          SimpleType(info.symbol, Nil)
+        case k.DEF | k.VAL | k.VAR | k.PARAMETER =>
+          info.tpe.get
+        case _ =>
+          unreachable(info)
       }
     }
   }

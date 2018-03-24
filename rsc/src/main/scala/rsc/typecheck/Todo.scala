@@ -10,6 +10,7 @@ final class Todo private extends Pretty {
   val scopes: Queue[(Env, Scope)] = new LinkedList[(Env, Scope)]
   val mods: Queue[(Env, Mod)] = new LinkedList[(Env, Mod)]
   val tpts: Queue[(Env, Tpt)] = new LinkedList[(Env, Tpt)]
+  val outlines: Queue[(Env, Outline)] = new LinkedList[(Env, Outline)]
   val terms: Queue[(Env, Term)] = new LinkedList[(Env, Term)]
   def printStr(p: Printer): Unit = PrettyTodo.str(p, this)
   def printRepl(p: Printer): Unit = PrettyTodo.repl(p, this)

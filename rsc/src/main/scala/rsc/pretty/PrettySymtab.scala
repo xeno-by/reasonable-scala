@@ -18,9 +18,9 @@ object PrettySymtab {
       p.newline()
     }
     p.newline()
-    p.header("Outlines (symtab)")
-    val outlines = x._outlines.asScala.toList.sortBy(_._1.str)
-    p.rep(outlines, EOL) {
+    p.header("Infos (symtab)")
+    val infos = x._infos.asScala.toList.sortBy(_._1.str)
+    p.rep(infos, EOL) {
       case (sym, outline) =>
         p.str(sym)
         p.str(" => ")

@@ -2,15 +2,14 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc.typecheck
 
-import java.util.{HashMap, Map}
+import java.util.HashMap
 import rsc.pretty._
 import rsc.semantics._
-import rsc.syntax._
 import rsc.util._
 
 final class Symtab private extends Pretty {
-  val _scopes: Map[Symbol, Scope] = new HashMap[Symbol, Scope]
-  val _outlines: Map[Symbol, Outline] = new HashMap[Symbol, Outline]
+  val _scopes = new HashMap[Symbol, Scope]
+  val _infos = new HashMap[Symbol, SymbolInformation]
 
   object scopes {
     def apply(sym: Symbol): Scope = {
@@ -32,22 +31,22 @@ final class Symtab private extends Pretty {
     }
   }
 
-  object outlines {
-    def apply(sym: Symbol): Outline = {
-      val outline = _outlines.get(sym)
-      if (outline == null) {
+  object infos {
+    def apply(sym: Symbol): SymbolInformation = {
+      val info = _infos.get(sym)
+      if (info == null) {
         unreachable(sym)
       }
-      outline
+      info
     }
 
-    def update(sym: Symbol, outline: Outline): Unit = {
-      if (_outlines.containsKey(sym)) {
+    def update(sym: Symbol, info: SymbolInformation): Unit = {
+      if (_infos.containsKey(sym)) {
         unreachable(sym)
       }
       sym match {
-        case NoSymbol => unreachable(outline)
-        case other => _outlines.put(sym, outline)
+        case NoSymbol => unreachable(info)
+        case other => _infos.put(sym, info)
       }
     }
   }

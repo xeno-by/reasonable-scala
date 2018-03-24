@@ -15,39 +15,31 @@ final class Linker private (
     symtab: Symtab,
     todo: Todo) {
   def apply(trees: List[Source], classpath: List[nio.Path]): Unit = {
-    val pi = createPi()
+    val pi = createPackage(NoSymbol, "π")
     val rootPackage = createPackage(pi, "_root_")
     val emptyPackage = createPackage(pi, "_empty_")
     // NOTE: We expect the deps to be available as stubs on the sourcepath.
     // See stdlib/src/main/scala/Stdlib.scala for an example for such stubs.
   }
 
-  private def createPi(): Symbol = {
-    val sym = "π."
-    val scope = PackageScope(sym)
-    symtab.scopes(sym) = scope
-    todo.scopes.add(Env(), scope)
-    symtab.outlines(sym) = DefnPackage(TermId("π").withSym(sym), Nil)
-    sym
-  }
-
   private def createPackage(owner: Symbol, value: String): Symbol = {
     val name = TermName(value)
     val sym = {
-      if (owner == "π.") value + "."
+      if (owner == NoSymbol || owner == "π.") value + "."
       else owner + value + "."
     }
-    val outline = DefnPackage(TermId(value).withSym(sym), Nil)
     val scope = PackageScope(sym)
+    symtab.scopes(sym) = scope
     todo.scopes.add(Env() -> scope)
-    val ownerScope = symtab.scopes(owner)
-    ownerScope.enter(name, sym) match {
-      case NoSymbol =>
-        symtab.scopes(sym) = scope
-        symtab.outlines(sym) = outline
-        sym
-      case _ =>
-        unreachable(ownerScope)
+    todo.outlines.add(Env() -> DefnPackage(TermId(value).withSym(sym), Nil))
+    if (owner != NoSymbol) {
+      val ownerScope = symtab.scopes(owner)
+      ownerScope.enter(name, sym) match {
+        case NoSymbol => sym
+        case _ => unreachable(ownerScope)
+      }
+    } else {
+      sym
     }
   }
 }

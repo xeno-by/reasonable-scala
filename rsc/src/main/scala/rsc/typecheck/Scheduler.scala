@@ -29,29 +29,26 @@ final class Scheduler private (
     }
   }
 
-  private def assignSym(
-      owner: OwnerScope,
-      id: NamedId,
-      outline: Outline): Symbol = {
+  private def assignSym(env: Env, id: NamedId, outline: Outline): Symbol = {
     val proposedSym = {
-      owner match {
-        case _: FlatScope => owner.sym + id.name.str
-        case _: PackageScope => owner.sym + id.name.str
-        case _: TemplateScope => owner.sym + id.name.str
+      env.owner match {
+        case _: FlatScope => env.owner.sym + id.name.str
+        case _: PackageScope => env.owner.sym + id.name.str
+        case _: TemplateScope => env.owner.sym + id.name.str
       }
     }
-    owner.enter(id.name, proposedSym) match {
+    env.owner.enter(id.name, proposedSym) match {
       case NoSymbol =>
         id.sym = proposedSym
-        symtab.outlines(id.sym) = outline
+        todo.outlines.add(env -> outline)
       case existingSym =>
-        reporter.append(DoubleDef(outline, symtab.outlines(existingSym)))
+        reporter.append(DoubleDef(existingSym, outline, todo, symtab))
     }
     id.sym
   }
 
   private def defnDef(env: Env, tree: DefnDef): Env = {
-    val sym = assignSym(env.owner, tree.id, tree)
+    val sym = assignSym(env, tree.id, tree)
     if (sym != NoSymbol) {
       mods(env, tree.mods)
       val tparamEnv = typeParams(env, tree.tparams)
@@ -63,7 +60,7 @@ final class Scheduler private (
   }
 
   private def defnField(env: Env, tree: DefnField): Env = {
-    val sym = assignSym(env.owner, tree.id, tree)
+    val sym = assignSym(env, tree.id, tree)
     if (sym != NoSymbol) {
       mods(env, tree.mods)
       todo.tpts.add(env -> tree.tpt)
@@ -88,15 +85,10 @@ final class Scheduler private (
           val packageScope = PackageScope(id.sym)
           symtab.scopes(id.sym) = packageScope
           todo.scopes.add(qualEnv -> packageScope)
-          symtab.outlines(id.sym) = DefnPackage(id, Nil)
+          todo.outlines.add(qualEnv -> DefnPackage(id, Nil))
         case existingSym =>
-          val existingOutline = symtab.outlines(existingSym)
-          existingOutline match {
-            case _: DefnPackage =>
-              id.sym = existingSym
-            case _ =>
-              unsupported("overloading")
-          }
+          id.sym = existingSym
+        // TODO: Overloaded package and object definitions?
       }
       symtab.scopes(id.sym) :: qualEnv
     }
@@ -106,7 +98,7 @@ final class Scheduler private (
   }
 
   private def defnTemplate(env: Env, tree: DefnTemplate): Env = {
-    val sym = assignSym(env.owner, tree.id, tree)
+    val sym = assignSym(env, tree.id, tree)
     if (sym != NoSymbol) {
       mods(env, tree.mods)
       val tparamEnv = typeParams(env, tree.tparams)
@@ -131,7 +123,7 @@ final class Scheduler private (
   }
 
   private def defnType(env: Env, tree: DefnType): Env = {
-    val sym = assignSym(env.owner, tree.id, tree)
+    val sym = assignSym(env, tree.id, tree)
     if (sym != NoSymbol) {
       mods(env, tree.mods)
       todo.tpts.add(env -> tree.tpt)
@@ -210,7 +202,7 @@ final class Scheduler private (
   }
 
   private def termParam(env: Env, tree: TermParam): Env = {
-    val sym = assignSym(env.owner, tree.id, tree)
+    val sym = assignSym(env, tree.id, tree)
     if (sym != NoSymbol) {
       // NOTE: Params are typechecked in env.outer, but their mods use env.
       // This is inconsistent, and unfortunately not mentioned in SLS.
@@ -233,7 +225,7 @@ final class Scheduler private (
   }
 
   private def typeParam(env: Env, tree: TypeParam): Env = {
-    val sym = assignSym(env.owner, tree.id, tree)
+    val sym = assignSym(env, tree.id, tree)
     if (sym != NoSymbol) {
       mods(env, tree.mods)
       tree.ubound.foreach(ubound => todo.tpts.add(env -> ubound))

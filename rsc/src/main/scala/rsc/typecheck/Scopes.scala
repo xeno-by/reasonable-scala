@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
 package rsc.typecheck
 
-import java.util.{HashMap, Map}
+import java.util.HashMap
 import scala.collection.mutable
 import rsc.pretty._
 import rsc.semantics._
@@ -144,8 +144,8 @@ final class ImporterScope private (sym: Symbol, val tree: Importer)
     unreachable(this)
   }
 
-  val _mappings: Map[String, String] = new HashMap[String, String]
-  var _wildcard: Boolean = false
+  val _mappings = new HashMap[String, String]
+  var _wildcard = false
 
   tree.importees.foreach {
     case ImporteeName(SomeId(value)) => _mappings.put(value, value)
@@ -220,7 +220,7 @@ object ImporterScope {
 }
 
 sealed abstract class OwnerScope(sym: Symbol) extends Scope(sym) {
-  val _storage: Map[Name, Symbol] = new HashMap[Name, Symbol]
+  val _storage = new HashMap[Name, Symbol]
 
   override def enter(name: Name, sym: Symbol): Symbol = {
     if (status.isPending) {
