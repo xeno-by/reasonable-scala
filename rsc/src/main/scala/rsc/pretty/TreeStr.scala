@@ -144,11 +144,13 @@ class TreeStr(val p: Printer) {
           case _ => apply(id)
         }
         p.Prefix(": ")(tpt)(apply(_, ""))
-      case PrimaryCtor(mods, params) =>
+      case tree @ PrimaryCtor(mods, params) =>
         if (mods.nonEmpty) {
           p.str(" ")
           p.Suffix(" ")(mods)(apply(_, " "))
         }
+        if (tree.id.sym != NoSymbol) p.str("<" + tree.id.sym + ">")
+        else ()
         p.Parens(apply(params, ", "))
       case Source(stats) =>
         apply(stats, EOL)
