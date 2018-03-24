@@ -52,9 +52,9 @@ final class Typechecker private (
     funTpe match {
       case NoType =>
         NoType
-      case MethodType(Nil, _, ret) =>
+      case FunctionType(Nil, _, ret) =>
         ret
-      case MethodType(other, _, _) =>
+      case FunctionType(other, _, _) =>
         unsupported("type inference")
       case other =>
         val id1 = TermId("apply").withPos(tree.fun.pos.end, tree.fun)
@@ -96,7 +96,7 @@ final class Typechecker private (
     funTpe match {
       case NoType =>
         NoType
-      case MethodType(tparams, paramss, ret) =>
+      case FunctionType(tparams, paramss, ret) =>
         funTpe.subst(tparams, targs)
       case other =>
         val id1 = TermId("apply").withPos(tree.fun.pos.end, tree.fun)
@@ -288,7 +288,7 @@ final class Typechecker private (
     qualTpe match {
       case NoType =>
         NoType
-      case qualTpe: MethodType =>
+      case qualTpe: FunctionType =>
         reporter.append(NonValue(tree.qual, qualTpe))
         NoType
       case qualTpe: SimpleType =>
@@ -314,7 +314,7 @@ final class Typechecker private (
           qualTpe match {
             case NoType =>
               NoType
-            case _: MethodType =>
+            case _: FunctionType =>
               unreachable(qualTpe)
             case SimpleType(qualSym, targs) =>
               symtab.outlines(qualSym) match {
@@ -484,7 +484,7 @@ final class Typechecker private (
           val tpeTparams = tparams.map(_.id.sym)
           val tpeParams = params.map(_.id.sym)
           val tpeRet = ret.tpe
-          MethodType(tpeTparams, tpeParams, tpeRet)
+          FunctionType(tpeTparams, tpeParams, tpeRet)
         case DefnField(_, _, tpt, _) =>
           tpt.tpe
         case DefnObject(_, id, _, _) =>
@@ -511,7 +511,7 @@ final class Typechecker private (
         tpe match {
           case NoType =>
             NoType
-          case tpe: MethodType =>
+          case tpe: FunctionType =>
             val tparams1 = tpe.tparams.diff(tparams.map(_.id.sym))
             val params1 = tpe.params
             val ret1 = {
@@ -520,7 +520,7 @@ final class Typechecker private (
                 case other => unreachable(other)
               }
             }
-            MethodType(tparams1, params1, ret1)
+            FunctionType(tparams1, params1, ret1)
           case tpe: SimpleType =>
             val i = tparams.indexWhere(_.id.sym == tpe.sym)
             if (i != -1) {
@@ -545,7 +545,7 @@ final class Typechecker private (
         tpe match {
           case NoType =>
             NoType
-          case tpe: MethodType =>
+          case tpe: FunctionType =>
             val tparams1 = tpe.tparams.diff(tparams)
             val params1 = tpe.params
             val ret1 = {
@@ -554,7 +554,7 @@ final class Typechecker private (
                 case other => unreachable(other)
               }
             }
-            MethodType(tparams1, params1, ret1)
+            FunctionType(tparams1, params1, ret1)
           case tpe: SimpleType =>
             val i = tparams.indexWhere(_ == tpe.sym)
             if (i != -1) {

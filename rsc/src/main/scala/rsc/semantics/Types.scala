@@ -13,7 +13,17 @@ final case object NoType extends Type
 
 final case class SimpleType(sym: Symbol, targs: List[SimpleType]) extends Type
 
-final case class MethodType(
+// NOTE: This class has previously been called MethodType.
+// I've recently renamed it to FunctionType.
+//
+// I know that the new name is incorrect, because function types
+// don't have type parameters, and because function types are defined
+// differently in SLS.
+//
+// However, the new name will help avoid naming conflicts in the upcoming
+// refactoring to use SemanticDB, so I think it's worth it for the
+// transition period.
+final case class FunctionType(
     tparams: List[Symbol],
     params: List[Symbol],
     ret: SimpleType)

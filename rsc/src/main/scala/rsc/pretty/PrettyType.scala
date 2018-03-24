@@ -16,7 +16,7 @@ object PrettyType {
           p.rep(targs, ", ")(p.str)
           p.str("]")
         }
-      case MethodType(tparams, vparamss, ret) =>
+      case FunctionType(tparams, vparamss, ret) =>
         if (tparams.nonEmpty) {
           p.str("[")
           p.rep(tparams, ", ")(sym => p.str("<" + sym + ">"))
