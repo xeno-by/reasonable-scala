@@ -117,7 +117,7 @@ final class Outliner private (
           companionClass match {
             case caseClass: DefnClass if caseClass.hasCase =>
               if (caseClass.tparams.isEmpty && tree.isSynthetic) {
-                val params = caseClass.ctor.paramss.headOption.getOrElse(Nil)
+                val params = caseClass.primaryCtor.paramss.headOption.getOrElse(Nil)
                 val sym = AbstractFunctionClass(params.length)
                 val core = TptId(sym.desc.value).withSym(sym)
                 val paramTpts = params.map(_.tpt.get.dupe)
