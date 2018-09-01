@@ -6,8 +6,7 @@ import java.nio.file._
 import rsc.pretty._
 import scala.collection.mutable
 
-sealed class Input protected (val path: Path, val language: Language)
-    extends Pretty {
+sealed class Input protected (val path: Path, val language: Language) extends Pretty {
   lazy val string: String = {
     val codec = scala.io.Codec.UTF8
     val source = scala.io.Source.fromFile(path.toFile)(codec)

@@ -10,10 +10,7 @@ import rsc.settings._
 import rsc.util._
 import scala.annotation.switch
 
-final class Scanner private (
-    val settings: Settings,
-    val reporter: Reporter,
-    val input: Input)
+final class Scanner private (val settings: Settings, val reporter: Reporter, val input: Input)
     extends rsc.scan.Scanner
     with Characters
     with Messages {
@@ -30,14 +27,12 @@ final class Scanner private (
         whitespace()
       case CR | LF | FF =>
         newline()
-      case 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' |
-          'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' |
-          'W' | 'X' | 'Y' | 'Z' | '$' | '_' | 'a' | 'b' | 'c' | 'd' | 'e' |
-          'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' |
-          'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' =>
+      case 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' |
+          'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' | '$' | '_' | 'a' | 'b' |
+          'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' |
+          'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' =>
         idOrKeyword()
-      case '=' | '>' | '<' | '!' | '~' | '&' | '|' | '+' | '-' | '*' | '^' |
-          '%' =>
+      case '=' | '>' | '<' | '!' | '~' | '&' | '|' | '+' | '-' | '*' | '^' | '%' =>
         operator()
       case '?' =>
         nextChar()

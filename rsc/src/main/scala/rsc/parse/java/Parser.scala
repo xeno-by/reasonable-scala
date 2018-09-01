@@ -49,11 +49,7 @@ final class Parser private (
 }
 
 object Parser {
-  def apply(
-      settings: Settings,
-      reporter: Reporter,
-      gensym: Gensym,
-      input: Input): Parser = {
+  def apply(settings: Settings, reporter: Reporter, gensym: Gensym, input: Input): Parser = {
     new Parser(settings, reporter, gensym, input)
   }
 }
