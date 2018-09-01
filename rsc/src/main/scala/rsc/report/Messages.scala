@@ -83,6 +83,11 @@ final case class IllegalNumber(pos: Position) extends Message {
   def text = "illegal number"
 }
 
+final case class IllegalLanguage(pos: Position) extends Message {
+  def sev = FatalSeverity
+  def text = "illegal language"
+}
+
 final case class IllegalXml(pos: Position) extends Message {
   def sev = FatalSeverity
   def text = "illegal xml"
@@ -212,6 +217,7 @@ final case class MixedLeftAndRightAssociativeOps(
     extends Message {
   def sev = ErrorSeverity
   def text = {
+    import rsc.lexis.scala._
     def status(op: String) = {
       if (op1.isLeftAssoc) "which is left-associative"
       else "which is right-associative"
