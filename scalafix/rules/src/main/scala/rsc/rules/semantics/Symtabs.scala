@@ -1,5 +1,7 @@
 // Copyright (c) 2017-2018 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
-package rsc.rules
+package rsc.rules.semantics
 
-package object semantics extends Symbols with Symtabs
+trait Symtabs {
+  type Symtab = scala.meta.internal.symtab.SymbolTable
+}
