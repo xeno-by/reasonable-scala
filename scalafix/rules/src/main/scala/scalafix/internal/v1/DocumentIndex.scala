@@ -1,13 +1,14 @@
 // Copyright (c) 2017-2018 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0 (see LICENSE.md).
-package scalafix.internal.v0
+package scalafix.internal.v1
 
 import scala.meta._
 import scala.meta.internal.{semanticdb => s}
+import scalafix.v1.SemanticDocument
 
-case class DocumentIndex(legacyIndex: LegacySemanticdbIndex) {
+case class DocumentIndex(index: InternalSemanticDoc) {
   lazy val doc: s.TextDocument = {
-    legacyIndex.doc.internal.textDocument
+    index.textDocument
   }
 
   lazy val input: Input = {
@@ -31,10 +32,15 @@ case class DocumentIndex(legacyIndex: LegacySemanticdbIndex) {
   }
 
   lazy val symbols: DocumentSymbols = {
-    DocumentSymbols(legacyIndex)
+    DocumentSymbols(index.symtab)
   }
 
   lazy val synthetics: Map[s.Range, s.Synthetic] = {
     doc.synthetics.map(synth => synth.range.get -> synth).toMap
   }
+}
+
+object DocumentIndex {
+  def apply(semanticDoc: SemanticDocument): DocumentIndex =
+    DocumentIndex(semanticDoc.internal)
 }

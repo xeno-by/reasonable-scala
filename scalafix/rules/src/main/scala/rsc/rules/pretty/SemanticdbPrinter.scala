@@ -13,7 +13,8 @@ import scala.meta.internal.{semanticdb => s}
 import scala.meta.internal.semanticdb.Scala._
 import scala.meta.internal.semanticdb.Scala.{Descriptor => d}
 import scala.meta.internal.semanticdb.Scala.{Names => n}
-import scalafix.internal.v0._
+import scala.meta.internal.semanticdb.{Scala, Signature, TypeRef, TypeSignature}
+import scalafix.internal.v1._
 
 class SemanticdbPrinter(env: Env, index: DocumentIndex, config: RscCompatConfig) extends Printer {
   def pprint(tree: s.Tree): Unit = tree match {
@@ -81,6 +82,43 @@ class SemanticdbPrinter(env: Env, index: DocumentIndex, config: RscCompatConfig)
     case _ => sys.error(s"unsupported tree $tree")
   }
 
+  def symbolOf(signature: Signature): Option[String] =
+    signature match {
+      case TypeSignature(_, lower: TypeRef, upper: TypeRef) if lower == upper => Some(lower.symbol)
+      case _ => None
+    }
+
+
+  def symIsInScope(sym: String, env: Env): Boolean = {
+    extractName(sym)
+      .map(env.lookup) match {
+      // TODO: If the lookup returns NoSymbol, we can insert an import and skip the prefix.
+      // The logic to implement this is left for future work.
+      case None => false
+      case Some(symFromScope) => isSameOrAlias(sym, symFromScope)
+    }
+  }
+
+  def isSameOrAlias(sym: String, envSym: String) =
+    (sym == envSym) || dealias(envSym).contains(sym)
+
+  def dealias(sym: String): Option[String] = {
+    index.symbols.get(sym).flatMap(s => symbolOf(s.signature))
+  }
+
+  def extractName(sym: String): Option[Scala.Names.Name] = {
+    // TODO: At the moment, we return None for local symbols, since they don't have a desc.
+    // The logic to improve on this is left for future work.
+    sym.desc match {
+      case d.Term(value) => Some(n.TermName(value))
+      case d.Type(value) => Some(n.TypeName(value))
+      case d.Package(value) => Some(n.TermName(value))
+      case d.Parameter(value) => Some(n.TermName(value))
+      case d.TypeParameter(value) => Some(n.TypeName(value))
+      case other => None
+    }
+  }
+
   def pprint(tpe: s.Type): Unit = {
     def prefix(tpe: s.Type): Unit = {
       tpe match {
@@ -99,19 +137,7 @@ class SemanticdbPrinter(env: Env, index: DocumentIndex, config: RscCompatConfig)
             str(" => ")
             normal(ret)
           } else {
-            // TODO: At the moment, we return None for local symbols, since they don't have a desc.
-            // The logic to improve on this is left for future work.
-            val name = sym.desc match {
-              case d.Term(value) => Some(n.TermName(value))
-              case d.Type(value) => Some(n.TypeName(value))
-              case d.Package(value) => Some(n.TermName(value))
-              case d.Parameter(value) => Some(n.TermName(value))
-              case d.TypeParameter(value) => Some(n.TypeName(value))
-              case other => None
-            }
-            // TODO: If the lookup returns NoSymbol, we can insert an import and skip the prefix.
-            // The logic to implement this is left for future work.
-            if (config.better && name.map(env.lookup) == Some(sym)) {
+            if (config.better && symIsInScope(sym, env)) {
               ()
             } else {
               val prettyPre = if (pre == s.NoType) sym.trivialPrefix(env) else pre
@@ -130,9 +156,10 @@ class SemanticdbPrinter(env: Env, index: DocumentIndex, config: RscCompatConfig)
             rep("[", args, ", ", "]")(normal)
           }
         case s.SingleType(pre, sym) =>
-          // TODO: Also check for config.better.
-          val prettyPre = if (pre == s.NoType) sym.trivialPrefix(env) else pre
-          opt(prettyPre, ".")(prefix)
+          if (!config.better) {
+            val prettyPre = if (pre == s.NoType) sym.trivialPrefix(env) else pre
+            opt(prettyPre, ".")(prefix)
+          }
           pprint(sym)
         case s.ThisType(sym) =>
           opt(sym, ".")(pprint)

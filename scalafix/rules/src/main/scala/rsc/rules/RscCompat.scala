@@ -11,31 +11,30 @@ import rsc.rules.syntax._
 import scala.meta._
 import scala.meta.contrib._
 import scala.meta.internal.{semanticdb => s}
-import scalafix.internal.util._
-import scalafix.internal.v0._
-import scalafix.rule._
-import scalafix.syntax._
+import scalafix.internal.v1._
+import scalafix.lint.Diagnostic
+import scalafix.patch.Patch
+import scalafix.v1.{Configuration, Rule}
 import scalafix.util.TokenOps
-import scalafix.v0._
+import scalafix.v1.SemanticDocument
+import scalafix.v1._
 
-case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
-    extends SemanticdbRule(legacyIndex, "RscCompat") {
-  def this(legacyIndex: SemanticdbIndex) = {
-    this(legacyIndex, RscCompatConfig.default)
-  }
+case class RscCompat(config: RscCompatConfig)
+    extends SemanticdbRule( "RscCompat") {
+  def this() = this(RscCompatConfig.default)
 
-  override def init(config: Conf): Configured[Rule] = {
-    config
+  override def withConfiguration(config: Configuration): Configured[Rule] = {
+    config.conf
       .getOrElse("rscCompat", "RscCompat")(RscCompatConfig.default)
-      .map(RscCompat(legacyIndex, _))
+      .map(RscCompat(_))
   }
 
-  override def fix(ctx: RuleCtx): Patch = {
-    val targets = collectRewriteTargets(ctx)
-    targets.map(ascribeReturnType(ctx, _)).asPatch
+  override def fix(implicit doc: SemanticDocument): Patch = {
+    val targets = collectRewriteTargets(doc)
+    targets.map(ascribeReturnType(doc, _)).asPatch
   }
 
-  private case class RewriteTarget(
+  case class RewriteTarget(
       env: Env,
       before: Token,
       name: Name,
@@ -43,7 +42,8 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
       body: Term,
       parens: Boolean)
 
-  private def collectRewriteTargets(ctx: RuleCtx): List[RewriteTarget] = {
+  def collectRewriteTargets(doc: SemanticDocument): List[RewriteTarget] = {
+    implicit val impDoc = doc
     val buf = List.newBuilder[RewriteTarget]
     def loop(env: Env, tree: Tree): Env = {
       tree match {
@@ -57,21 +57,21 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
         case Import(importers) =>
           importers.foldLeft(env)(loop)
         case Importer(ref, importees) =>
-          return ImporterScope(index.symbols, ref.name.symbol.get.syntax, importees) :: env
+          return ImporterScope(index.symbols, ref.name.symbol.value, importees) :: env
         case Pkg(ref, stats) =>
-          val env1 = PackageScope(index.symbols, ref.name.symbol.get.syntax) :: env
+          val env1 = PackageScope(index.symbols, ref.name.symbol.value) :: env
           stats.foldLeft(env1)(loop)
         case Pkg.Object(_, name, templ) =>
-          val env1 = TemplateScope(index.symbols, name.symbol.get.syntax) :: env
+          val env1 = TemplateScope(index.symbols, name.symbol.value) :: env
           loop(env1, templ)
         case defn @ Defn.Class(_, name, _, _, templ) if defn.isVisible =>
-          val env1 = TemplateScope(index.symbols, name.symbol.get.syntax) :: env
+          val env1 = TemplateScope(index.symbols, name.symbol.value) :: env
           loop(env1, templ)
         case defn @ Defn.Trait(_, name, _, _, templ) if defn.isVisible =>
-          val env1 = TemplateScope(index.symbols, name.symbol.get.syntax) :: env
+          val env1 = TemplateScope(index.symbols, name.symbol.value) :: env
           loop(env1, templ)
         case defn @ Defn.Object(_, name, templ) if defn.isVisible =>
-          val env1 = TemplateScope(index.symbols, name.symbol.get.syntax) :: env
+          val env1 = TemplateScope(index.symbols, name.symbol.value) :: env
           loop(env1, templ)
         case Template(early, _, _, stats) =>
           (early ++ stats).foldLeft(env)(loop)
@@ -86,7 +86,7 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
             val after = {
               val start = name.tokens.head
               val end = body.tokens.head
-              val slice = ctx.tokenList.slice(start, end)
+              val slice = doc.tokenList.slice(start, end)
               slice.reverse
                 .find(x => !x.is[Token.Equals] && !x.is[Trivia])
                 .get
@@ -104,7 +104,7 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
           val after = {
             val start = name.tokens.head
             val end = body.tokens.head
-            val slice = ctx.tokenList.slice(start, end)
+            val slice = doc.tokenList.slice(start, end)
             slice.reverse
               .find(x => !x.is[Token.Equals] && !x.is[Trivia])
               .get
@@ -115,18 +115,21 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
       }
       env
     }
-    loop(Env(Nil), ctx.tree)
+    loop(Env(Nil), doc.tree)
     buf.result
   }
 
-  private def ascribeReturnType(ctx: RuleCtx, target: RewriteTarget): Patch = {
+  def ascribeReturnType(doc: SemanticDocument, target: RewriteTarget): Patch = {
+    implicit val impDoc = doc
     try {
       val returnTypeString = {
-        val symbol = target.name.symbol.get.syntax
+        val symbol = target.name.symbol.value
         config.hardcoded.get(symbol) match {
           case Some(returnTypeString) =>
             returnTypeString
-          case _ =>
+          case _ if index.symbols.get(symbol).isDefined =>
+            //FIXME, ignore symbols that are not found as pattern syms are returning as localn
+            //with no symbo on lookup due to https://github.com/scalameta/scalameta/issues/1725
             val info = index.symbols(symbol)
             target.body match {
               case Term.ApplyType(Term.Name("implicitly"), _) if info.isImplicit =>
@@ -151,12 +154,15 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
                 printer.pprint(returnType)
                 printer.toString
             }
+          case _ =>
+            //FIXME: Do nothing until https://github.com/scalameta/scalameta/issues/1725 is resolved
+            return Patch.empty
         }
       }
       if (returnTypeString.nonEmpty) {
         val before = {
           val lparenOpt = if (target.parens) "(" else ""
-          ctx.addLeft(target.before, lparenOpt)
+          Patch.addLeft(target.before, lparenOpt)
         }
         val after = {
           val whitespaceOpt = {
@@ -165,7 +171,7 @@ case class RscCompat(legacyIndex: SemanticdbIndex, config: RscCompatConfig)
           }
           val ascription = s": $returnTypeString"
           val rparenOpt = if (target.parens) ")" else ""
-          ctx.addRight(target.after, whitespaceOpt + ascription + rparenOpt)
+          Patch.addRight(target.after, whitespaceOpt + ascription + rparenOpt)
         }
         before + after
       } else {
